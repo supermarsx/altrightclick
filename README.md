@@ -1,4 +1,16 @@
 # altrightclick
+
+[![CI](https://github.com/supermarsx/altrightclick/actions/workflows/ci.yml/badge.svg)](https://github.com/supermarsx/altrightclick/actions/workflows/ci.yml)
+[![Rolling Release](https://github.com/supermarsx/altrightclick/actions/workflows/release.yml/badge.svg)](https://github.com/supermarsx/altrightclick/actions/workflows/release.yml)
+[![Downloads](https://img.shields.io/github/downloads/supermarsx/altrightclick/total.svg)](https://github.com/supermarsx/altrightclick/releases)
+[![Stars](https://img.shields.io/github/stars/supermarsx/altrightclick.svg?style=social)](https://github.com/supermarsx/altrightclick/stargazers)
+[![Watchers](https://img.shields.io/github/watchers/supermarsx/altrightclick.svg?style=social)](https://github.com/supermarsx/altrightclick/watchers)
+[![Forks](https://img.shields.io/github/forks/supermarsx/altrightclick.svg?style=social)](https://github.com/supermarsx/altrightclick/network/members)
+[![Issues](https://img.shields.io/github/issues/supermarsx/altrightclick.svg)](https://github.com/supermarsx/altrightclick/issues)
+[![License](https://img.shields.io/github/license/supermarsx/altrightclick.svg)](license.md)
+[![Built with](https://img.shields.io/badge/Built%20with-C%2B%2B17%20%7C%20CMake-blue)](#build-windows)
+[![Windows](https://img.shields.io/badge/Windows-x64%20%7C%20ARM64-0078D6?logo=windows&logoColor=white)](#build-windows)
+
 altrightclick turns Alt + Left Click into a Right Click on Windows by installing a low-level mouse hook. It can run as a tray app with a simple config file, and provides CLI commands for installing/uninstalling a Windows service (with caveats about Session 0 isolation).
 
 ## Features
