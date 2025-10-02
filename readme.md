@@ -104,7 +104,19 @@ Output:
   - For a custom icon, update `src/tray.cpp` to load an `.ico` (or add a `.rc` resource and link it)
 
 ## System Tray Icon
-The app shows a tray icon (default Windows application icon) with a context menu (Exit). Replace the icon by changing `src/tray.cpp` to load a custom `.ico` or by adding a resource script.
+The app shows a tray icon (default Windows application icon) with a context menu:
+- Click Time +/−: adjust `click_time_ms` in 10ms steps (10–5000ms)
+- Move Radius +/−: adjust `move_radius_px` in 1px steps (0–100px)
+- Ignore Injected: toggle `ignore_injected`
+- Save Settings: write current settings to the config file if available
+- Open Config Folder: opens the directory containing the current config file
+- Exit
+
+Replace the icon by changing `src/tray.cpp` to load a custom `.ico` or by adding a resource script.
+
+Tray window
+- The tray owner window is a hidden tool window (`WS_EX_TOOLWINDOW` with `WS_POPUP`), not a visible overlapped window.
+- It has no taskbar icon and exists only to receive notification area messages.
 
 ## Service Limitations (Important)
 Global low-level hooks and input injection generally require an interactive user session. Due to Session 0 isolation, services cannot interact with the desktop. The provided service management commands are included, but hook behavior will not function as expected when run as a traditional service. For auto-start in a user session, prefer:

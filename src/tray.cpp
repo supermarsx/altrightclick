@@ -3,6 +3,7 @@
 #include <shellapi.h>
 
 #include <algorithm>
+#include <string>
 
 #include "arc/config.h"
 #include "arc/hook.h"
@@ -19,6 +20,7 @@ enum MenuId : UINT {
     kMenuMoveRadiusDec = 103,
     kMenuToggleIgnoreInjected = 104,
     kMenuSaveConfig = 105,
+    kMenuOpenConfigFolder = 106,
 };
 
 HMENU create_tray_menu(const arc::TrayContext* ctx) {
@@ -33,8 +35,23 @@ HMENU create_tray_menu(const arc::TrayContext* ctx) {
     AppendMenuW(menu, MF_STRING, kMenuToggleIgnoreInjected, inj.c_str());
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
     AppendMenuW(menu, MF_STRING, kMenuSaveConfig, L"Save Settings");
+    AppendMenuW(menu, MF_STRING, kMenuOpenConfigFolder, L"Open Config Folder");
     AppendMenuW(menu, MF_STRING, kMenuExit, L"Exit");
     return menu;
+}
+
+static std::wstring to_w(const std::string &s) {
+    int n = MultiByteToWideChar(CP_UTF8, 0, s.c_str(), -1, nullptr, 0);
+    std::wstring w(n ? n - 1 : 0, L'\0');
+    if (n)
+        MultiByteToWideChar(CP_UTF8, 0, s.c_str(), -1, w.data(), n);
+    return w;
+}
+
+static std::wstring dir_of(const std::wstring &path) {
+    size_t pos = path.find_last_of(L"\\/");
+    if (pos == std::wstring::npos) return path;
+    return path.substr(0, pos);
 }
 
 LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
@@ -77,6 +94,15 @@ LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
                         arc::save_config(*ctx->config_path, *ctx->cfg);
                     }
                     break;
+                case kMenuOpenConfigFolder: {
+                    std::string p = (ctx->config_path && !ctx->config_path->empty())
+                                        ? *ctx->config_path
+                                        : arc::default_config_path();
+                    std::wstring wp = to_w(p);
+                    std::wstring dir = dir_of(wp);
+                    ShellExecuteW(nullptr, L"open", dir.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
+                    break;
+                }
                 case kMenuExit:
                     PostQuitMessage(0);
                     break;
@@ -111,8 +137,9 @@ HWND tray_init(HINSTANCE hInstance, const std::wstring &tooltip, arc::TrayContex
 
     RegisterClassExW(&wc);
 
-    HWND hwnd = CreateWindowExW(0, kClassName, L"AltRightClick", WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT,
-                                CW_USEDEFAULT, CW_USEDEFAULT, nullptr, nullptr, hInstance, nullptr);
+    // Create a hidden tool window (no taskbar button), used only to receive tray messages.
+    HWND hwnd = CreateWindowExW(WS_EX_TOOLWINDOW, kClassName, L"AltRightClick", WS_POPUP, 0, 0, 0, 0, nullptr, nullptr,
+                                hInstance, nullptr);
 
     if (ctx) {
         SetWindowLongPtr(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(ctx));
