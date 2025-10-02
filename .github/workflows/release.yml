@@ -122,6 +122,11 @@ jobs:
           DATE=$(date -u +"%y.%m.%d")
           echo "tag=v0.1.${DATE}" >> "$GITHUB_OUTPUT"
           echo "name=v0.1.${DATE}" >> "$GITHUB_OUTPUT"
+          # Extract semver from CMakeLists.txt (project(altrightclick VERSION X.Y.Z))
+          SEMVER=$(sed -n 's/.*project( *altrightclick *VERSION *\([0-9]*\.[0-9]*\.[0-9]*\).*/\1/p' CMakeLists.txt)
+          if [ -z "$SEMVER" ]; then SEMVER=0.0.0; fi
+          echo "semver=$SEMVER" >> "$GITHUB_OUTPUT"
+          echo "semvertag=v$SEMVER" >> "$GITHUB_OUTPUT"
 
       - name: Compute checksums
         run: |
@@ -134,13 +139,11 @@ jobs:
       - name: Update Scoop manifest in repo
         run: |
           sudo apt-get update && sudo apt-get install -y jq
-          VER_NO_V="${{ steps.meta.outputs.name }}"  # same as tag without 'v' prefix
-          # Strip leading 'v' if present
-          VER_NO_V=${VER_NO_V#v}
+          VER_NO_V="${{ steps.meta.outputs.semver }}"
           X64_HASH=$(cut -d ' ' -f1 dist/altrightclick-windows-x64.zip.sha256)
           ARM64_HASH=$(cut -d ' ' -f1 dist/altrightclick-windows-arm64.zip.sha256)
-          X64_URL="https://github.com/${{ github.repository }}/releases/download/${{ steps.meta.outputs.tag }}/altrightclick-windows-x64.zip"
-          ARM64_URL="https://github.com/${{ github.repository }}/releases/download/${{ steps.meta.outputs.tag }}/altrightclick-windows-arm64.zip"
+          X64_URL="https://github.com/${{ github.repository }}/releases/download/${{ steps.meta.outputs.semvertag }}/altrightclick-windows-x64.zip"
+          ARM64_URL="https://github.com/${{ github.repository }}/releases/download/${{ steps.meta.outputs.semvertag }}/altrightclick-windows-arm64.zip"
           jq \
             --arg ver "$VER_NO_V" \
             --arg x64 "$X64_URL" \
@@ -177,6 +180,38 @@ jobs:
           generateReleaseNotes: false
           immutableCreate: false
           makeLatest: true
+          omitBody: false
+          omitBodyDuringUpdate: false
+          omitDraftDuringUpdate: false
+          omitName: false
+          omitNameDuringUpdate: false
+          omitPrereleaseDuringUpdate: false
+          removeArtifacts: false
+          skipIfReleaseExists: false
+          token: ${{ secrets.GITHUB_TOKEN }}
+          updateOnlyUnreleased: false
+
+      - name: Publish (semver tag)
+        uses: ncipollo/release-action@v1
+        with:
+          tag: ${{ steps.meta.outputs.semvertag }}
+          name: v${{ steps.meta.outputs.semver }}
+          draft: false
+          prerelease: false
+          allowUpdates: true
+          replacesArtifacts: true
+          artifacts: |
+            dist/altrightclick-windows-x64.zip,
+            dist/altrightclick-windows-arm64.zip,
+            dist/altrightclick-windows-x64.zip.sha256,
+            dist/altrightclick-windows-arm64.zip.sha256,
+            dist/altrightclick-windows-x64-pdb.zip,
+            dist/altrightclick-windows-arm64-pdb.zip,
+            dist/altrightclick-windows-x64-pdb.zip.sha256,
+            dist/altrightclick-windows-arm64-pdb.zip.sha256
+          generateReleaseNotes: false
+          immutableCreate: false
+          makeLatest: false
           omitBody: false
           omitBodyDuringUpdate: false
           omitDraftDuringUpdate: false
