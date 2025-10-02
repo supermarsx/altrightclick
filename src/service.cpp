@@ -139,6 +139,26 @@ bool service_stop(const std::wstring &name) {
     return ok;
 }
 
+bool service_is_running(const std::wstring &name) {
+    SC_HANDLE scm = OpenSCManagerW(nullptr, nullptr, SC_MANAGER_CONNECT);
+    if (!scm)
+        return false;
+    SC_HANDLE svc = OpenServiceW(scm, name.c_str(), SERVICE_QUERY_STATUS);
+    if (!svc) {
+        CloseServiceHandle(scm);
+        return false;
+    }
+    SERVICE_STATUS_PROCESS ssp{};
+    DWORD bytesNeeded = 0;
+    bool running = false;
+    if (QueryServiceStatusEx(svc, SC_STATUS_PROCESS_INFO, reinterpret_cast<LPBYTE>(&ssp), sizeof(ssp), &bytesNeeded)) {
+        running = (ssp.dwCurrentState == SERVICE_RUNNING);
+    }
+    CloseServiceHandle(svc);
+    CloseServiceHandle(scm);
+    return running;
+}
+
 int service_run(const std::wstring &name) {
     SERVICE_TABLE_ENTRYW dispatchTable[] = {{const_cast<LPWSTR>(name.c_str()), (LPSERVICE_MAIN_FUNCTIONW)SvcMain},
                                             {nullptr, nullptr}};

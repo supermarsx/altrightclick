@@ -35,7 +35,12 @@ static void print_help() {
                  "  --uninstall            Uninstall Windows service\n"
                  "  --start                Start Windows service\n"
                  "  --stop                 Stop Windows service\n"
+                 "  --service-status       Check if service is running\n"
                  "  --service              Run as service (internal)\n"
+                 "  --task-install         Install Scheduled Task (on logon, highest privs)\n"
+                 "  --task-uninstall       Uninstall Scheduled Task\n"
+                 "  --task-update          Update Scheduled Task target/args\n"
+                 "  --task-status          Check if Scheduled Task exists\n"
                  "  --help                 Show this help\n";
 }
 
@@ -43,7 +48,9 @@ int main(int argc, char **argv) {
     std::string config_path = arc::default_config_path();
 
     // Parse args
-    bool do_install = false, do_uninstall = false, do_start = false, do_stop = false, run_as_service = false;
+    bool do_install = false, do_uninstall = false, do_start = false, do_stop = false, do_service_status = false,
+         run_as_service = false;
+    bool do_task_install = false, do_task_uninstall = false, do_task_update = false, do_task_status = false;
     for (int i = 1; i < argc; ++i) {
         std::string a = argv[i];
         if (a == "--config" && i + 1 < argc) {
@@ -56,8 +63,18 @@ int main(int argc, char **argv) {
             do_start = true;
         } else if (a == "--stop") {
             do_stop = true;
+        } else if (a == "--service-status") {
+            do_service_status = true;
         } else if (a == "--service") {
             run_as_service = true;
+        } else if (a == "--task-install") {
+            do_task_install = true;
+        } else if (a == "--task-uninstall") {
+            do_task_uninstall = true;
+        } else if (a == "--task-update") {
+            do_task_update = true;
+        } else if (a == "--task-status") {
+            do_task_status = true;
         } else if (a == "--help" || a == "-h" || a == "-?") {
             print_help();
             return 0;
@@ -65,7 +82,7 @@ int main(int argc, char **argv) {
     }
 
     const std::wstring svcName = L"AltRightClickService";
-    if (do_install || do_uninstall || do_start || do_stop) {
+    if (do_install || do_uninstall || do_start || do_stop || do_service_status) {
         std::wstring exe = get_module_path();
         std::wstring cmd = L"\"" + exe + L"\" --service";
         if (!config_path.empty()) {
@@ -80,6 +97,35 @@ int main(int argc, char **argv) {
             ok = ok && arc::service_start(svcName);
         if (do_stop)
             ok = ok && arc::service_stop(svcName);
+        if (do_service_status) {
+            bool running = arc::service_is_running(svcName);
+            std::cout << (running ? "RUNNING" : "STOPPED") << std::endl;
+            ok = ok && running;
+        }
+        std::cout << (ok ? "OK" : "FAILED") << std::endl;
+        return ok ? 0 : 1;
+    }
+
+    // Scheduled Task management
+    const std::wstring taskName = L"AltRightClickTask";
+    if (do_task_install || do_task_uninstall || do_task_update || do_task_status) {
+        std::wstring exe = get_module_path();
+        std::wstring cmd = L"\"" + exe + L"\"";
+        if (!config_path.empty()) {
+            cmd += L" --config \"" + to_w(config_path) + L"\"";
+        }
+        bool ok = true;
+        if (do_task_install)
+            ok = ok && arc::task_install(taskName, cmd, true);
+        if (do_task_uninstall)
+            ok = ok && arc::task_uninstall(taskName);
+        if (do_task_update)
+            ok = ok && arc::task_update(taskName, cmd, true);
+        if (do_task_status) {
+            bool exists = arc::task_exists(taskName);
+            std::cout << (exists ? "PRESENT" : "MISSING") << std::endl;
+            ok = ok && exists;
+        }
         std::cout << (ok ? "OK" : "FAILED") << std::endl;
         return ok ? 0 : 1;
     }

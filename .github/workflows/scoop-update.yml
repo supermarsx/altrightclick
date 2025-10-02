@@ -1,0 +1,76 @@
+name: Scoop Update
+
+on:
+  schedule:
+    - cron: '0 4 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Fetch latest release metadata
+        id: meta
+        env:
+          REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          curl -sSfL -H "Accept: application/vnd.github+json" -H "Authorization: Bearer ${GH_TOKEN}" \
+            https://api.github.com/repos/${REPO}/releases/latest > latest.json
+          TAG=$(jq -r .tag_name latest.json)
+          NAME=$(jq -r .name latest.json)
+          X64_URL=$(jq -r '.assets[] | select(.name=="altrightclick-windows-x64.zip").browser_download_url' latest.json)
+          ARM64_URL=$(jq -r '.assets[] | select(.name=="altrightclick-windows-arm64.zip").browser_download_url' latest.json)
+          X64_SHA_URL=$(jq -r '.assets[] | select(.name=="altrightclick-windows-x64.zip.sha256").browser_download_url' latest.json)
+          ARM64_SHA_URL=$(jq -r '.assets[] | select(.name=="altrightclick-windows-arm64.zip.sha256").browser_download_url' latest.json)
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "name=$NAME" >> "$GITHUB_OUTPUT"
+          echo "x64=$X64_URL" >> "$GITHUB_OUTPUT"
+          echo "arm64=$ARM64_URL" >> "$GITHUB_OUTPUT"
+          echo "x64sha=$X64_SHA_URL" >> "$GITHUB_OUTPUT"
+          echo "arm64sha=$ARM64_SHA_URL" >> "$GITHUB_OUTPUT"
+
+      - name: Download checksums
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          curl -sSfL -H "Authorization: Bearer ${GH_TOKEN}" "${{ steps.meta.outputs.x64sha }}" -o x64.sha256
+          curl -sSfL -H "Authorization: Bearer ${GH_TOKEN}" "${{ steps.meta.outputs.arm64sha }}" -o arm64.sha256
+          X64_HASH=$(cut -d ' ' -f1 x64.sha256)
+          ARM64_HASH=$(cut -d ' ' -f1 arm64.sha256)
+          echo "X64_HASH=$X64_HASH" >> $GITHUB_ENV
+          echo "ARM64_HASH=$ARM64_HASH" >> $GITHUB_ENV
+
+      - name: Update manifest
+        env:
+          TAG: ${{ steps.meta.outputs.tag }}
+          NAME: ${{ steps.meta.outputs.name }}
+        run: |
+          VER_NO_V=${NAME#v}
+          jq \
+            --arg ver "$VER_NO_V" \
+            --arg x64 "${{ steps.meta.outputs.x64 }}" \
+            --arg a64 "${{ steps.meta.outputs.arm64 }}" \
+            --arg xh "$X64_HASH" \
+            --arg ah "$ARM64_HASH" \
+            '.version=$ver | .architecture["64bit"].url=$x64 | .architecture["64bit"].hash=$xh | .architecture.arm64.url=$a64 | .architecture.arm64.hash=$ah' \
+            scoop/altrightclick.json > scoop/altrightclick.json.tmp
+          mv scoop/altrightclick.json.tmp scoop/altrightclick.json
+
+      - name: Commit changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add scoop/altrightclick.json
+          git commit -m "scoop: sync manifest to latest release" || echo "No changes"
+          git push
+

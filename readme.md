@@ -37,7 +37,7 @@ altrightclick turns Alt + Left Click into a Right Click on Windows by installing
   - `scoop bucket add altrightclick https://github.com/supermarsx/altrightclick`
   - `scoop install altrightclick`
 Notes:
-- Releases are tagged by date (e.g., `v0.1.yy.mm.dd`). Scoop manifest updates automatically after each rolling release.
+- Releases are tagged by date (e.g., `v0.1.yy.mm.dd`). Scoop manifest updates automatically after each rolling release and via a nightly sync job.
 
 ## CLI Arguments
 - `--config <path>`: use a specific config file
@@ -45,7 +45,12 @@ Notes:
 - `--uninstall`: uninstall the Windows service
 - `--start`: start the Windows service
 - `--stop`: stop the Windows service
+- `--service-status`: print `RUNNING` or `STOPPED` and set exit code
 - `--service`: internal; run service mode (invoked by the SCM)
+- `--task-install`: create a Scheduled Task to run at user logon (highest privileges)
+- `--task-uninstall`: remove the Scheduled Task
+- `--task-update`: update the Scheduled Task target/args
+- `--task-status`: print `PRESENT` if the Scheduled Task exists
 - `--help`: show usage
 
 Examples:
