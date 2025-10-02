@@ -9,3 +9,5 @@ AllowShortIfStatementsOnASingleLine: false
 AllowShortFunctionsOnASingleLine: All
 Standard: c++17
 SortIncludes: false
+SpacesBeforeTrailingComments: 2
+FixNamespaceComments: true
