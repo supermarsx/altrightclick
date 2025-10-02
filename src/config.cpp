@@ -129,6 +129,8 @@ Config load_config(const std::string &path) {
             cfg.log_level = vall;
         } else if (key == "log_file") {
             cfg.log_file = val;  // keep original as path
+        } else if (key == "watch_config") {
+            cfg.watch_config = (vall == "1" || vall == "true" || vall == "yes");
         }
     }
     return cfg;
@@ -238,6 +240,8 @@ bool save_config(const std::string &path, const Config &cfg) {
         out << "# Log file path (optional)\n";
         out << "log_file=" << cfg.log_file << "\n";
     }
+    out << "\n# Live reload the config file on changes (true/false)\n";
+    out << "watch_config=" << (cfg.watch_config ? "true" : "false") << "\n";
     out.flush();
     return out.good();
 }

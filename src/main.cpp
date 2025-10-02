@@ -239,10 +239,48 @@ int main(int argc, char **argv) {
         arc::log_error("Failed to start hook worker");
         return 1;
     }
+    arc::TrayContext trayCtx{&cfg, &config_path};
     if (cfg.show_tray) {
-        arc::TrayContext ctx{&cfg, &config_path};
-        start_tray_worker(L"AltRightClick running (Alt+Left => Right)", &ctx);
+        start_tray_worker(L"AltRightClick running (Alt+Left => Right)", &trayCtx);
     }
+
+    // Optional live reload watcher
+    std::atomic<bool> watchStop{false};
+    std::thread watchThread;
+    auto start_watch = [&]() {
+        if (!cfg.watch_config) return;
+        watchThread = std::thread([&]() {
+            auto get_mtime = [](const std::wstring &p) -> ULONGLONG {
+                WIN32_FILE_ATTRIBUTE_DATA fad{};
+                if (GetFileAttributesExW(p.c_str(), GetFileExInfoStandard, &fad)) {
+                    ULARGE_INTEGER ui;
+                    ui.HighPart = fad.ftLastWriteTime.dwHighDateTime;
+                    ui.LowPart = fad.ftLastWriteTime.dwLowDateTime;
+                    return ui.QuadPart;
+                }
+                return 0ULL;
+            };
+            std::wstring wcfg = to_w(config_path);
+            ULONGLONG last = get_mtime(wcfg);
+            while (!watchStop.load()) {
+                Sleep(500);
+                ULONGLONG cur = get_mtime(wcfg);
+                if (cur != 0 && cur != last) {
+                    last = cur;
+                    arc::Config newCfg = arc::load_config(config_path);
+                    if (!cli_log_level.empty()) newCfg.log_level = cli_log_level;
+                    if (!cli_log_file.empty()) newCfg.log_file = cli_log_file;
+                    arc::log_set_level_by_name(newCfg.log_level);
+                    if (!newCfg.log_file.empty()) arc::log_set_file(newCfg.log_file);
+                    arc::apply_hook_config(newCfg);
+                    *trayCtx.cfg = newCfg;
+                    arc::tray_notify(L"altrightclick", L"Configuration reloaded");
+                    arc::log_info("Configuration reloaded");
+                }
+            }
+        });
+    };
+    start_watch();
 
     // Poll for exit key
     arc::log_info("Alt + Left Click => Right Click. Press exit key to quit.");
@@ -251,6 +289,8 @@ int main(int argc, char **argv) {
         Sleep(50);
     }
 
+    watchStop.store(true);
+    if (watchThread.joinable()) watchThread.join();
     stop_tray_worker();
     stop_hook_worker();
     arc::log_stop_async();

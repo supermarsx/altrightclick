@@ -204,4 +204,14 @@ void stop_tray_worker() {
     if (g_trayThread.joinable()) g_trayThread.join();
 }
 
+void tray_notify(const std::wstring& title, const std::wstring& message) {
+    if (!g_nid.hWnd) return;
+    NOTIFYICONDATAW nid = g_nid;
+    nid.uFlags |= NIF_INFO;
+    wcsncpy_s(nid.szInfoTitle, title.c_str(), _TRUNCATE);
+    wcsncpy_s(nid.szInfo, message.c_str(), _TRUNCATE);
+    nid.dwInfoFlags = NIIF_INFO;
+    Shell_NotifyIconW(NIM_MODIFY, &nid);
+}
+
 }  // namespace arc

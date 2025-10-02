@@ -21,6 +21,9 @@ HWND tray_init(HINSTANCE hInstance, const std::wstring &tooltip, TrayContext* ct
 bool start_tray_worker(const std::wstring &tooltip, TrayContext* ctx);
 void stop_tray_worker();
 
+// Show a brief information balloon from the tray icon (no-op if tray not initialized)
+void tray_notify(const std::wstring& title, const std::wstring& message);
+
 // Removes the tray icon and destroys the hidden window.
 void tray_cleanup(HWND hwnd);
 

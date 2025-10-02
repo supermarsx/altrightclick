@@ -28,6 +28,8 @@ struct Config {
     // Trigger button for translation
     enum class Trigger { Left, Middle, X1, X2 };
     Trigger trigger = Trigger::Left;
+    // Live reload
+    bool watch_config = false;
 };
 
 // Loads configuration from file path. If not found, keeps defaults.
@@ -36,6 +38,7 @@ struct Config {
 // ignore_injected=true|false, click_time_ms=<uint>, move_radius_px=<int>
 // log_level=error|warn|info|debug, log_file=<path>
 // trigger=LEFT|MIDDLE|X1|X2; modifier can be combos like ALT+CTRL or ALT,CTRL
+// watch_config=true|false
 Config load_config(const std::string &path);
 
 // Finds a default config path: <exe_dir>\\config.ini if present, otherwise

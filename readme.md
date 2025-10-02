@@ -81,6 +81,7 @@ Keys (case-insensitive):
 - `log_level=error|warn|info|debug` (default: info)
 - `log_file=<path>` (default: empty; console only)
  - `trigger=LEFT|MIDDLE|X1|X2` (default: LEFT) — source button to translate
+ - `watch_config=true|false` (default: false) — live reload config when the file changes
 
 Example: see `config.example.ini:1`.
 
