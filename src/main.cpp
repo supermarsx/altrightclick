@@ -14,6 +14,7 @@
 #include "arc/singleton.h"
 #include "arc/task.h"
 #include "arc/log.h"
+#include "altrightclick/version.h"
 
 static std::wstring to_w(const std::string &s) {
     int n = MultiByteToWideChar(CP_UTF8, 0, s.c_str(), -1, nullptr, 0);
@@ -225,6 +226,7 @@ int main(int argc, char **argv) {
     if (!cli_log_file.empty()) cfg.log_file = cli_log_file;
     arc::log_set_level_by_name(cfg.log_level);
     if (!cfg.log_file.empty()) arc::log_set_file(cfg.log_file);
+    arc::log_info(std::string("altrightclick ") + ARC_VERSION);
     arc::log_info(std::string("Using config: ") + config_path);
     arc::apply_hook_config(cfg);
     arc::log_start_async();
