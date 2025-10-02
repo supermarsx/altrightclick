@@ -10,6 +10,7 @@
 #include "arc/tray.h"
 #include "arc/config.h"
 #include "arc/service.h"
+#include "arc/singleton.h"
 
 static std::wstring to_w(const std::string& s) {
     int n = MultiByteToWideChar(CP_UTF8, 0, s.c_str(), -1, nullptr, 0);
@@ -81,7 +82,12 @@ int main(int argc, char** argv) {
         return arc::service_run(svcName);
     }
 
-    // Normal interactive app: load config, init hook, tray, message loop
+    // Normal interactive app: enforce single instance, load config, init hook, tray, message loop
+    arc::SingletonGuard instance(arc::default_singleton_name());
+    if (!instance.acquired()) {
+        std::cerr << "altrightclick is already running." << std::endl;
+        return 0;
+    }
     arc::Config cfg = arc::load_config(config_path);
     arc::apply_hook_config(cfg);
 

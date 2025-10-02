@@ -14,6 +14,7 @@ set(SRC
     src/config.cpp
     src/tray.cpp
     src/service.cpp
+    src/singleton.cpp
 )
 
 add_executable(altrightclick ${SRC})
