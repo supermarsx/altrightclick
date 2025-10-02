@@ -59,7 +59,7 @@ jobs:
   build-x64:
     name: Build (x64)
     runs-on: windows-latest
-    needs: [format, lint, auto-format]
+    needs: [test-x64]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -79,16 +79,16 @@ jobs:
   test-x64:
     name: Test (x64)
     runs-on: windows-latest
-    needs: [build-x64]
+    needs: [format, lint, auto-format]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Download build (x64)
-        uses: actions/download-artifact@v4
-        with:
-          name: build-x64
-          path: build/x64
+      - name: Configure (x64)
+        run: cmake -S . -B build/x64 -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build (x64)
+        run: cmake --build build/x64 --config Release -- /m
 
       - name: Run tests (ctest)
         run: |
@@ -98,7 +98,7 @@ jobs:
   build-arm64:
     name: Build (ARM64)
     runs-on: windows-latest
-    needs: [format, lint, auto-format]
+    needs: [test-arm64]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -118,16 +118,16 @@ jobs:
   test-arm64:
     name: Test (ARM64)
     runs-on: windows-latest
-    needs: [build-arm64]
+    needs: [format, lint, auto-format]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Download build (ARM64)
-        uses: actions/download-artifact@v4
-        with:
-          name: build-arm64
-          path: build/arm64
+      - name: Configure (ARM64)
+        run: cmake -S . -B build/arm64 -G "Visual Studio 17 2022" -A ARM64 -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build (ARM64)
+        run: cmake --build build/arm64 --config Release -- /m
 
       - name: Run tests (ctest)
         run: |
