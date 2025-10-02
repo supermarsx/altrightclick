@@ -5,6 +5,9 @@ on:
     branches: [ main ]
   pull_request:
 
+permissions:
+  contents: write
+
 jobs:
   format:
     name: Format
@@ -125,3 +128,34 @@ jobs:
         run: |
           cd build/arm64
           ctest -C Release --output-on-failure || echo "No tests or tests failed"
+  auto-format:
+    name: Auto Format (commit if needed)
+    runs-on: ubuntu-latest
+    needs: [format]
+    if: ${{ (github.event_name == 'pull_request' && !github.event.pull_request.head.repo.fork) || github.event_name == 'push' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install clang-format
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-format
+
+      - name: Run clang-format
+        run: |
+          files=$(git ls-files '*.c' '*.cc' '*.cpp' '*.cxx' '*.h' '*.hpp')
+          if [ -n "$files" ]; then
+            clang-format -i $files
+          fi
+
+      - name: Auto commit formatted changes
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore: auto format via clang-format"
+          branch: ${{ github.head_ref || github.ref_name }}
+          commit_user_name: github-actions[bot]
+          commit_user_email: 41898282+github-actions[bot]@users.noreply.github.com
+          file_pattern: "*.c *.cc *.cpp *.cxx *.h *.hpp .clang-format"
