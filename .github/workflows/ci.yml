@@ -165,4 +165,4 @@ jobs:
           branch: ${{ github.head_ref || github.ref_name }}
           commit_user_name: github-actions[bot]
           commit_user_email: 41898282+github-actions[bot]@users.noreply.github.com
-          file_pattern: "*.c *.cc *.cpp *.cxx *.h *.hpp .clang-format"
+          file_pattern: .
