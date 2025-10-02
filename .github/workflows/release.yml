@@ -5,8 +5,12 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
-  build-and-release:
+  build-x64:
+    name: Build (x64)
     runs-on: windows-latest
     steps:
       - name: Checkout
@@ -17,27 +21,69 @@ jobs:
           cmake -S . -B build/x64 -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=Release
           cmake --build build/x64 --config Release -- /m
 
+      - name: Package (x64)
+        shell: pwsh
+        run: |
+          New-Item -Type Directory dist/x64 | Out-Null
+          Copy-Item build/x64/Release/altrightclick.exe dist/x64/
+          Copy-Item config.example.ini dist/x64/ -ErrorAction SilentlyContinue
+          Copy-Item readme.md dist/x64/ -ErrorAction SilentlyContinue
+          Copy-Item license.md dist/x64/ -ErrorAction SilentlyContinue
+          Compress-Archive -Path dist/x64/* -DestinationPath dist/altrightclick-windows-x64.zip -Force
+
+      - name: Upload artifact (x64)
+        uses: actions/upload-artifact@v4
+        with:
+          name: altrightclick-windows-x64
+          path: dist/altrightclick-windows-x64.zip
+
+  build-arm64:
+    name: Build (ARM64)
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Configure + Build (ARM64)
         run: |
           cmake -S . -B build/arm64 -G "Visual Studio 17 2022" -A ARM64 -DCMAKE_BUILD_TYPE=Release
           cmake --build build/arm64 --config Release -- /m
 
-      - name: Package artifacts
+      - name: Package (ARM64)
         shell: pwsh
         run: |
-          New-Item -Type Directory dist/x64, dist/arm64 | Out-Null
-          Copy-Item build/x64/Release/altrightclick.exe dist/x64/
+          New-Item -Type Directory dist/arm64 | Out-Null
           Copy-Item build/arm64/Release/altrightclick.exe dist/arm64/
-          Copy-Item config.example.ini dist/x64/ -ErrorAction SilentlyContinue
           Copy-Item config.example.ini dist/arm64/ -ErrorAction SilentlyContinue
-          Copy-Item readme.md dist/x64/ -ErrorAction SilentlyContinue
-          Copy-Item license.md dist/x64/ -ErrorAction SilentlyContinue
           Copy-Item readme.md dist/arm64/ -ErrorAction SilentlyContinue
           Copy-Item license.md dist/arm64/ -ErrorAction SilentlyContinue
-          Compress-Archive -Path dist/x64/* -DestinationPath dist/altrightclick-windows-x64.zip -Force
           Compress-Archive -Path dist/arm64/* -DestinationPath dist/altrightclick-windows-arm64.zip -Force
 
-      - name: Publish Rolling Release
+      - name: Upload artifact (ARM64)
+        uses: actions/upload-artifact@v4
+        with:
+          name: altrightclick-windows-arm64
+          path: dist/altrightclick-windows-arm64.zip
+
+  publish:
+    name: Publish Rolling Release
+    runs-on: ubuntu-latest
+    needs: [build-x64, build-arm64]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          # download both artifacts to ./dist
+          path: dist
+          merge-multiple: true
+
+      - name: List artifacts
+        run: ls -la dist
+
+      - name: Publish
         uses: ncipollo/release-action@v1
         with:
           tag: rolling
@@ -47,4 +93,16 @@ jobs:
           allowUpdates: true
           replacesArtifacts: true
           artifacts: dist/altrightclick-windows-x64.zip,dist/altrightclick-windows-arm64.zip
-
+          generateReleaseNotes: false
+          immutableCreate: false
+          makeLatest: legacy
+          omitBody: false
+          omitBodyDuringUpdate: false
+          omitDraftDuringUpdate: false
+          omitName: false
+          omitNameDuringUpdate: false
+          omitPrereleaseDuringUpdate: false
+          removeArtifacts: false
+          skipIfReleaseExists: false
+          token: ${{ secrets.GITHUB_TOKEN }}
+          updateOnlyUnreleased: false
