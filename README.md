@@ -20,6 +20,7 @@ altrightclick turns Alt + Left Click into a Right Click on Windows by installing
 - CLI for service install/uninstall/start/stop
 - 64-bit x64 and ARM64 builds via CMake (VS 2022)
 - Modular code: separate headers under `include/arc` and sources in `src`
+ - Single-instance guard to prevent multiple concurrent instances
 
 ## Quick Start
 - Run interactively with tray: place `altrightclick.exe` somewhere and run it. Press `ESC` to exit (configurable).
