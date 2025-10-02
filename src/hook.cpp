@@ -2,13 +2,20 @@
 
 #include <windows.h>
 
+#include <atomic>
+#include <thread>
+
 #include "arc/config.h"
+#include "arc/log.h"
 
 namespace {
 HHOOK g_mouseHook = nullptr;
 unsigned int g_modifier_vk = VK_MENU;         // default ALT
 bool g_ignore_injected = true;
 const ULONG_PTR kArcInjectedTag = 0xA17C1C00;  // tag our injected events
+std::atomic<bool> g_hookRunning{false};
+DWORD g_hookThreadId = 0;
+std::thread g_hookThread;
 
 // Click/drag discrimination
 bool g_tracking = false;
@@ -101,6 +108,36 @@ void apply_hook_config(const arc::Config &cfg) {
     g_ignore_injected = cfg.ignore_injected;
     g_clickTimeMs = cfg.click_time_ms;
     g_moveRadius = cfg.move_radius_px;
+}
+
+bool start_hook_worker() {
+    if (g_hookRunning.load()) return true;
+    g_hookRunning.store(true);
+    g_hookThread = std::thread([]() {
+        g_hookThreadId = GetCurrentThreadId();
+        if (!install_mouse_hook()) {
+            arc::log_error("Hook worker: failed to install mouse hook");
+            g_hookRunning.store(false);
+            return;
+        }
+        MSG msg;
+        while (GetMessage(&msg, nullptr, 0, 0)) {
+            TranslateMessage(&msg);
+            DispatchMessage(&msg);
+        }
+        remove_mouse_hook();
+        g_hookRunning.store(false);
+    });
+    return true;
+}
+
+void stop_hook_worker() {
+    if (g_hookRunning.load()) {
+        if (g_hookThreadId) PostThreadMessage(g_hookThreadId, WM_QUIT, 0, 0);
+        if (g_hookThread.joinable()) g_hookThread.join();
+        g_hookThreadId = 0;
+        g_hookRunning.store(false);
+    }
 }
 
 }  // namespace arc

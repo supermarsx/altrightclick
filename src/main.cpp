@@ -29,6 +29,40 @@ static std::wstring get_module_path() {
     return std::wstring(buf);
 }
 
+static bool file_exists_w(const std::wstring &path) {
+    DWORD attrs = GetFileAttributesW(path.c_str());
+    return attrs != INVALID_FILE_ATTRIBUTES && !(attrs & FILE_ATTRIBUTE_DIRECTORY);
+}
+
+static bool is_safe_arg_utf8(const std::string &s) {
+    for (unsigned char c : s) {
+        if (c < 0x20) return false;  // control chars (CR, LF, TAB, etc.)
+        if (c == '"') return false; // disallow quotes to avoid breaking quoting
+    }
+    return true;
+}
+
+static bool is_elevated() {
+    HANDLE token = nullptr;
+    if (OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &token)) {
+        TOKEN_ELEVATION elev{};
+        DWORD ret = 0;
+        BOOL ok = GetTokenInformation(token, TokenElevation, &elev, sizeof(elev), &ret);
+        CloseHandle(token);
+        if (ok) return elev.TokenIsElevated != 0;
+    }
+    // Fallback: check membership in Administrators
+    BOOL isMember = FALSE;
+    SID_IDENTIFIER_AUTHORITY NtAuthority = SECURITY_NT_AUTHORITY;
+    PSID adminGroup = nullptr;
+    if (AllocateAndInitializeSid(&NtAuthority, 2, SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_ADMINS,
+                                 0, 0, 0, 0, 0, 0, &adminGroup)) {
+        CheckTokenMembership(nullptr, adminGroup, &isMember);
+        FreeSid(adminGroup);
+    }
+    return isMember == TRUE;
+}
+
 static void print_help() {
     std::cout << "Usage: altrightclick [options]\n"
                  "\nOptions:\n"
@@ -91,10 +125,23 @@ int main(int argc, char **argv) {
 
     const std::wstring svcName = L"AltRightClickService";
     if (do_install || do_uninstall || do_start || do_stop || do_service_status) {
+        if (!is_elevated()) {
+            std::cerr << "Service commands require Administrator privileges.\n"
+                         "Please run the shell as Administrator and try again." << std::endl;
+            return 1;
+        }
         std::wstring exe = get_module_path();
+        if (!file_exists_w(exe)) {
+            arc::log_error("Service: executable path does not exist");
+            return 1;
+        }
         std::wstring cmd = L"\"" + exe + L"\" --service";
         if (!config_path.empty()) {
-            cmd += L" --config \"" + to_w(config_path) + L"\"";
+            if (is_safe_arg_utf8(config_path)) {
+                cmd += L" --config \"" + to_w(config_path) + L"\"";
+            } else {
+                arc::log_warn("Service: unsafe characters in config path; skipping --config");
+            }
         }
         bool ok = true;
         if (do_install)
@@ -155,30 +202,32 @@ int main(int argc, char **argv) {
     if (!cfg.log_file.empty()) arc::log_set_file(cfg.log_file);
     arc::log_info(std::string("Using config: ") + config_path);
     arc::apply_hook_config(cfg);
+    arc::log_start_async();
 
     if (!cfg.enabled) {
         arc::log_info("altrightclick: disabled in config.");
         return 0;
     }
 
-    if (!arc::install_mouse_hook()) {
-        arc::log_error("Failed to install mouse hook!");
+    // Start hook + tray workers
+    if (!start_hook_worker()) {
+        arc::log_error("Failed to start hook worker");
         return 1;
     }
-
-    std::wcout << L"Alt + Left Click => Right Click. Press key to exit." << std::endl;
-
-    HWND hwndTray = nullptr;
     if (cfg.show_tray) {
         arc::TrayContext ctx{&cfg, &config_path};
-        hwndTray = arc::tray_init(GetModuleHandleW(nullptr), L"AltRightClick running (Alt+Left => Right)", &ctx);
+        start_tray_worker(L"AltRightClick running (Alt+Left => Right)", &ctx);
     }
 
-    arc::run_message_loop(cfg.exit_vk);
-
-    if (hwndTray) {
-        arc::tray_cleanup(hwndTray);
+    // Poll for exit key
+    arc::log_info("Alt + Left Click => Right Click. Press exit key to quit.");
+    while (true) {
+        if (cfg.exit_vk && (GetAsyncKeyState(static_cast<int>(cfg.exit_vk)) & 0x8000)) break;
+        Sleep(50);
     }
-    arc::remove_mouse_hook();
+
+    stop_tray_worker();
+    stop_hook_worker();
+    arc::log_stop_async();
     return 0;
 }

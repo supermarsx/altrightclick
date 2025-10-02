@@ -17,6 +17,10 @@ struct TrayContext {
 // The window will handle basic messages and allow graceful shutdown via tray menu (Exit).
 HWND tray_init(HINSTANCE hInstance, const std::wstring &tooltip, TrayContext* ctx);
 
+// Run tray window in its own thread (returns immediately). Call tray_cleanup via stop_tray_worker.
+bool start_tray_worker(const std::wstring &tooltip, TrayContext* ctx);
+void stop_tray_worker();
+
 // Removes the tray icon and destroys the hidden window.
 void tray_cleanup(HWND hwnd);
 

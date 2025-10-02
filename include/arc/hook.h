@@ -20,4 +20,8 @@ LRESULT CALLBACK LowLevelMouseProc(int nCode, WPARAM wParam, LPARAM lParam);
 // Configure hook behavior (e.g., modifier key) using loaded config.
 void apply_hook_config(const arc::Config &cfg);
 
+// Run hook inside its own thread with a private message loop.
+bool start_hook_worker();
+void stop_hook_worker();
+
 }  // namespace arc

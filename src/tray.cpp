@@ -4,13 +4,17 @@
 
 #include <algorithm>
 #include <string>
+#include <thread>
 
 #include "arc/config.h"
 #include "arc/hook.h"
+#include "arc/log.h"
 
 namespace {
 constexpr UINT WM_TRAYICON = WM_APP + 1;
 NOTIFYICONDATAW g_nid{};
+static std::thread g_trayThread;
+static DWORD g_trayThreadId = 0;
 
 enum MenuId : UINT {
     kMenuExit = 1,
@@ -168,6 +172,36 @@ void tray_cleanup(HWND hwnd) {
     }
     if (hwnd)
         DestroyWindow(hwnd);
+}
+
+}  // namespace arc
+
+namespace arc {
+
+bool start_tray_worker(const std::wstring &tooltip, TrayContext* ctx) {
+    if (g_trayThread.joinable()) return true;
+    g_trayThread = std::thread([tooltip, ctx]() {
+        g_trayThreadId = GetCurrentThreadId();
+        HINSTANCE hInst = GetModuleHandleW(nullptr);
+        HWND hwnd = tray_init(hInst, tooltip, ctx);
+        if (!hwnd) {
+            arc::log_error("Tray worker: failed to create tray window");
+            return;
+        }
+        MSG msg;
+        while (GetMessage(&msg, nullptr, 0, 0)) {
+            TranslateMessage(&msg);
+            DispatchMessage(&msg);
+        }
+        tray_cleanup(hwnd);
+        g_trayThreadId = 0;
+    });
+    return true;
+}
+
+void stop_tray_worker() {
+    if (g_trayThreadId) PostThreadMessage(g_trayThreadId, WM_QUIT, 0, 0);
+    if (g_trayThread.joinable()) g_trayThread.join();
 }
 
 }  // namespace arc

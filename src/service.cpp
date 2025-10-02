@@ -71,10 +71,21 @@ void WINAPI SvcMain(DWORD, LPTSTR *) {
 
     ReportSvcStatus(SERVICE_RUNNING, NO_ERROR, 0);
 
-    // Message loop
-    arc::run_message_loop();
+    // Start hook worker on its own thread
+    if (!arc::start_hook_worker()) {
+        arc::log_error("Service: failed to start hook worker");
+        ReportSvcStatus(SERVICE_STOPPED, ERROR_SERVICE_SPECIFIC_ERROR, 2);
+        return;
+    }
 
-    arc::remove_mouse_hook();
+    // Message loop for service control (WM_QUIT posted on stop)
+    MSG msg;
+    while (GetMessage(&msg, nullptr, 0, 0)) {
+        TranslateMessage(&msg);
+        DispatchMessage(&msg);
+    }
+
+    arc::stop_hook_worker();
     ReportSvcStatus(SERVICE_STOPPED, NO_ERROR, 0);
 }
 
