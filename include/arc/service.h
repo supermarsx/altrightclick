@@ -11,6 +11,9 @@ bool service_uninstall(const std::wstring &name);
 bool service_start(const std::wstring &name);
 bool service_stop(const std::wstring &name);
 
+// Query service status: returns true if running, false if stopped/not found.
+bool service_is_running(const std::wstring &name);
+
 // Entry point to run as a Windows service. Blocks until stop.
 int service_run(const std::wstring &name);
 
