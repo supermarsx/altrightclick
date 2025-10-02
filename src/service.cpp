@@ -28,23 +28,24 @@ void ReportSvcStatus(DWORD dwCurrentState, DWORD dwWin32ExitCode, DWORD dwWaitHi
 
 void WINAPI SvcCtrlHandler(DWORD dwCtrl) {
     switch (dwCtrl) {
-        case SERVICE_CONTROL_STOP:
-        case SERVICE_CONTROL_SHUTDOWN:
-            ReportSvcStatus(SERVICE_STOP_PENDING, NO_ERROR, 0);
-            PostQuitMessage(0);
-            ReportSvcStatus(SERVICE_STOPPED, NO_ERROR, 0);
-            break;
-        default:
-            break;
+    case SERVICE_CONTROL_STOP:
+    case SERVICE_CONTROL_SHUTDOWN:
+        ReportSvcStatus(SERVICE_STOP_PENDING, NO_ERROR, 0);
+        PostQuitMessage(0);
+        ReportSvcStatus(SERVICE_STOPPED, NO_ERROR, 0);
+        break;
+    default:
+        break;
     }
 }
 
-void WINAPI SvcMain(DWORD, LPTSTR*) {
+void WINAPI SvcMain(DWORD, LPTSTR *) {
     g_SvcStatus.dwServiceType = SERVICE_WIN32_OWN_PROCESS;
     g_SvcStatus.dwServiceSpecificExitCode = 0;
 
     g_SvcStatusHandle = RegisterServiceCtrlHandlerW(L"AltRightClickService", SvcCtrlHandler);
-    if (!g_SvcStatusHandle) return;
+    if (!g_SvcStatusHandle)
+        return;
 
     ReportSvcStatus(SERVICE_START_PENDING, NO_ERROR, 3000);
 
@@ -62,7 +63,7 @@ void WINAPI SvcMain(DWORD, LPTSTR*) {
     ReportSvcStatus(SERVICE_STOPPED, NO_ERROR, 0);
 }
 
-std::wstring quote(const std::wstring& s) {
+std::wstring quote(const std::wstring &s) {
     if (s.find(L' ') != std::wstring::npos) {
         return L"\"" + s + L"\"";
     }
@@ -73,22 +74,15 @@ std::wstring quote(const std::wstring& s) {
 
 namespace arc {
 
-bool service_install(const std::wstring& name,
-                     const std::wstring& display_name,
-                     const std::wstring& bin_path_with_args) {
+bool service_install(const std::wstring &name, const std::wstring &display_name,
+                     const std::wstring &bin_path_with_args) {
     SC_HANDLE scm = OpenSCManagerW(nullptr, nullptr, SC_MANAGER_CREATE_SERVICE);
-    if (!scm) return false;
+    if (!scm)
+        return false;
 
-    SC_HANDLE svc = CreateServiceW(
-        scm,
-        name.c_str(),
-        display_name.c_str(),
-        SERVICE_ALL_ACCESS,
-        SERVICE_WIN32_OWN_PROCESS,
-        SERVICE_AUTO_START,
-        SERVICE_ERROR_NORMAL,
-        bin_path_with_args.c_str(),
-        nullptr, nullptr, nullptr, nullptr, nullptr);
+    SC_HANDLE svc = CreateServiceW(scm, name.c_str(), display_name.c_str(), SERVICE_ALL_ACCESS,
+                                   SERVICE_WIN32_OWN_PROCESS, SERVICE_AUTO_START, SERVICE_ERROR_NORMAL,
+                                   bin_path_with_args.c_str(), nullptr, nullptr, nullptr, nullptr, nullptr);
 
     if (!svc) {
         CloseServiceHandle(scm);
@@ -99,9 +93,10 @@ bool service_install(const std::wstring& name,
     return true;
 }
 
-bool service_uninstall(const std::wstring& name) {
+bool service_uninstall(const std::wstring &name) {
     SC_HANDLE scm = OpenSCManagerW(nullptr, nullptr, SC_MANAGER_CONNECT);
-    if (!scm) return false;
+    if (!scm)
+        return false;
     SC_HANDLE svc = OpenServiceW(scm, name.c_str(), DELETE);
     if (!svc) {
         CloseServiceHandle(scm);
@@ -113,9 +108,10 @@ bool service_uninstall(const std::wstring& name) {
     return ok;
 }
 
-bool service_start(const std::wstring& name) {
+bool service_start(const std::wstring &name) {
     SC_HANDLE scm = OpenSCManagerW(nullptr, nullptr, SC_MANAGER_CONNECT);
-    if (!scm) return false;
+    if (!scm)
+        return false;
     SC_HANDLE svc = OpenServiceW(scm, name.c_str(), SERVICE_START);
     if (!svc) {
         CloseServiceHandle(scm);
@@ -127,9 +123,10 @@ bool service_start(const std::wstring& name) {
     return ok;
 }
 
-bool service_stop(const std::wstring& name) {
+bool service_stop(const std::wstring &name) {
     SC_HANDLE scm = OpenSCManagerW(nullptr, nullptr, SC_MANAGER_CONNECT);
-    if (!scm) return false;
+    if (!scm)
+        return false;
     SC_HANDLE svc = OpenServiceW(scm, name.c_str(), SERVICE_STOP);
     if (!svc) {
         CloseServiceHandle(scm);
@@ -142,11 +139,9 @@ bool service_stop(const std::wstring& name) {
     return ok;
 }
 
-int service_run(const std::wstring& name) {
-    SERVICE_TABLE_ENTRYW dispatchTable[] = {
-        { const_cast<LPWSTR>(name.c_str()), (LPSERVICE_MAIN_FUNCTIONW)SvcMain },
-        { nullptr, nullptr }
-    };
+int service_run(const std::wstring &name) {
+    SERVICE_TABLE_ENTRYW dispatchTable[] = {{const_cast<LPWSTR>(name.c_str()), (LPSERVICE_MAIN_FUNCTIONW)SvcMain},
+                                            {nullptr, nullptr}};
     if (!StartServiceCtrlDispatcherW(dispatchTable)) {
         return 1;
     }

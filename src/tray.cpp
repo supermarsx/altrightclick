@@ -14,23 +14,24 @@ HMENU create_tray_menu() {
 
 LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     switch (msg) {
-        case WM_TRAYICON: {
-            if (lParam == WM_RBUTTONUP || lParam == WM_CONTEXTMENU) {
-                POINT pt; GetCursorPos(&pt);
-                SetForegroundWindow(hwnd);
-                HMENU menu = create_tray_menu();
-                UINT cmd = TrackPopupMenu(menu, TPM_RETURNCMD | TPM_NONOTIFY, pt.x, pt.y, 0, hwnd, nullptr);
-                DestroyMenu(menu);
-                if (cmd == 1) {
-                    PostQuitMessage(0);
-                }
+    case WM_TRAYICON: {
+        if (lParam == WM_RBUTTONUP || lParam == WM_CONTEXTMENU) {
+            POINT pt;
+            GetCursorPos(&pt);
+            SetForegroundWindow(hwnd);
+            HMENU menu = create_tray_menu();
+            UINT cmd = TrackPopupMenu(menu, TPM_RETURNCMD | TPM_NONOTIFY, pt.x, pt.y, 0, hwnd, nullptr);
+            DestroyMenu(menu);
+            if (cmd == 1) {
+                PostQuitMessage(0);
             }
-            break;
         }
-        case WM_DESTROY:
-            return 0;
-        default:
-            break;
+        break;
+    }
+    case WM_DESTROY:
+        return 0;
+    default:
+        break;
     }
     return DefWindowProc(hwnd, msg, wParam, lParam);
 }
@@ -38,9 +39,9 @@ LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
 
 namespace arc {
 
-HWND tray_init(HINSTANCE hInstance, const std::wstring& tooltip) {
-    const wchar_t* kClassName = L"AltRightClickTrayWindow";
-    WNDCLASSEXW wc{ sizeof(WNDCLASSEXW) };
+HWND tray_init(HINSTANCE hInstance, const std::wstring &tooltip) {
+    const wchar_t *kClassName = L"AltRightClickTrayWindow";
+    WNDCLASSEXW wc{sizeof(WNDCLASSEXW)};
     wc.lpfnWndProc = TrayWndProc;
     wc.hInstance = hInstance;
     wc.lpszClassName = kClassName;
@@ -49,9 +50,8 @@ HWND tray_init(HINSTANCE hInstance, const std::wstring& tooltip) {
 
     RegisterClassExW(&wc);
 
-    HWND hwnd = CreateWindowExW(0, kClassName, L"AltRightClick", WS_OVERLAPPEDWINDOW,
-                                CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT,
-                                nullptr, nullptr, hInstance, nullptr);
+    HWND hwnd = CreateWindowExW(0, kClassName, L"AltRightClick", WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT,
+                                CW_USEDEFAULT, CW_USEDEFAULT, nullptr, nullptr, hInstance, nullptr);
 
     // Prepare tray icon data
     memset(&g_nid, 0, sizeof(g_nid));
@@ -72,7 +72,8 @@ void tray_cleanup(HWND hwnd) {
         Shell_NotifyIconW(NIM_DELETE, &g_nid);
         g_nid = NOTIFYICONDATAW{};
     }
-    if (hwnd) DestroyWindow(hwnd);
+    if (hwnd)
+        DestroyWindow(hwnd);
 }
 
 }  // namespace arc
