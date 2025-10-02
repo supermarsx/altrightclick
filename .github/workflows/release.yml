@@ -91,11 +91,18 @@ jobs:
       - name: List artifacts
         run: ls -la dist
 
+      - name: Compute rolling tag
+        id: meta
+        run: |
+          DATE=$(date -u +"%y.%m.%d")
+          echo "tag=v0.1.${DATE}" >> "$GITHUB_OUTPUT"
+          echo "name=Rolling Release v0.1.${DATE}" >> "$GITHUB_OUTPUT"
+
       - name: Publish
         uses: ncipollo/release-action@v1
         with:
-          tag: rolling
-          name: Rolling Release
+          tag: ${{ steps.meta.outputs.tag }}
+          name: ${{ steps.meta.outputs.name }}
           draft: false
           prerelease: false
           allowUpdates: true
