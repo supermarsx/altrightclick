@@ -22,4 +22,9 @@ std::wstring default_singleton_name() {
     return L"Local\\AltRightClick.Singleton";
 }
 
+std::wstring service_singleton_name() {
+    // Global uniqueness for service context; distinct from interactive name
+    return L"Global\\AltRightClick.Service";
+}
+
 }  // namespace arc

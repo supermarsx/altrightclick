@@ -23,4 +23,7 @@ class SingletonGuard {
 // Returns a sensible default name for the app (per-session uniqueness).
 std::wstring default_singleton_name();
 
+// Service scope singleton (global namespace, distinct from interactive app)
+std::wstring service_singleton_name();
+
 }  // namespace arc

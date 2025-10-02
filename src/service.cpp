@@ -7,6 +7,7 @@
 #include "arc/hook.h"
 #include "arc/app.h"
 #include "arc/log.h"
+#include "arc/singleton.h"
 
 namespace {
 
@@ -52,6 +53,16 @@ void WINAPI SvcMain(DWORD, LPTSTR *) {
 
     ReportSvcStatus(SERVICE_START_PENDING, NO_ERROR, 3000);
 
+    // Prevent multiple service instances (distinct from interactive singleton)
+    {
+        arc::SingletonGuard guard(arc::service_singleton_name());
+        if (!guard.acquired()) {
+            arc::log_warn("Service instance already running (singleton acquired by another process)");
+            ReportSvcStatus(SERVICE_STOPPED, NO_ERROR, 0);
+            return;
+        }
+    }
+
     if (!arc::install_mouse_hook()) {
         arc::log_error("Service: install_mouse_hook failed");
         ReportSvcStatus(SERVICE_STOPPED, ERROR_SERVICE_SPECIFIC_ERROR, 1);
@@ -80,6 +91,15 @@ namespace arc {
 
 bool service_install(const std::wstring &name, const std::wstring &display_name,
                      const std::wstring &bin_path_with_args) {
+    // Basic validation: ensure it starts with a quoted path and has no CR/LF
+    if (bin_path_with_args.find(L"\n") != std::wstring::npos || bin_path_with_args.find(L"\r") != std::wstring::npos) {
+        arc::log_error("service_install: binpath contains newline characters");
+        return false;
+    }
+    if (bin_path_with_args.empty() || bin_path_with_args[0] != L'\"') {
+        arc::log_error("service_install: binpath must start with a quoted executable path");
+        return false;
+    }
     SC_HANDLE scm = OpenSCManagerW(nullptr, nullptr, SC_MANAGER_CREATE_SERVICE);
     if (!scm) {
         arc::log_error("OpenSCManagerW failed: " + arc::last_error_message(GetLastError()));
