@@ -136,27 +136,48 @@ std::string default_config_path() {
 }
 
 bool save_config(const std::string &path, const Config &cfg) {
+    // Ensure parent directory exists
+    int n = MultiByteToWideChar(CP_UTF8, 0, path.c_str(), -1, nullptr, 0);
+    std::wstring wp(n ? n - 1 : 0, L'\0');
+    if (n) MultiByteToWideChar(CP_UTF8, 0, path.c_str(), -1, wp.data(), n);
+    size_t pos = wp.find_last_of(L"\\/");
+    if (pos != std::wstring::npos) {
+        std::wstring dir = wp.substr(0, pos);
+        SHCreateDirectoryExW(nullptr, dir.c_str(), nullptr);
+    }
+
     std::ofstream out(path, std::ios::trunc);
     if (!out.is_open()) {
         return false;
     }
     out << "# altrightclick config\n";
-    out << "enabled=" << (cfg.enabled ? "true" : "false") << "\n";
-    out << "show_tray=" << (cfg.show_tray ? "true" : "false") << "\n";
+    out << "# Enable/disable the app (true/false)\n";
+    out << "enabled=" << (cfg.enabled ? "true" : "false") << "\n\n";
+    out << "# Show tray icon with runtime settings (true/false)\n";
+    out << "show_tray=" << (cfg.show_tray ? "true" : "false") << "\n\n";
     // Map modifier back to string
     std::string mod = "ALT";
     if (cfg.modifier_vk == VK_CONTROL) mod = "CTRL";
     else if (cfg.modifier_vk == VK_SHIFT) mod = "SHIFT";
     else if (cfg.modifier_vk == VK_LWIN) mod = "WIN";
-    out << "modifier=" << mod << "\n";
+    out << "# Modifier key for translating left-click to right-click (ALT|CTRL|SHIFT|WIN)\n";
+    out << "modifier=" << mod << "\n\n";
     // Exit key
     std::string exitk = (cfg.exit_vk == VK_F12) ? "F12" : "ESC";
-    out << "exit_key=" << exitk << "\n";
-    out << "ignore_injected=" << (cfg.ignore_injected ? "true" : "false") << "\n";
-    out << "click_time_ms=" << cfg.click_time_ms << "\n";
-    out << "move_radius_px=" << cfg.move_radius_px << "\n";
+    out << "# Exit key to stop the app when not running as a service (ESC|F12)\n";
+    out << "exit_key=" << exitk << "\n\n";
+    out << "# Ignore externally injected events (true/false)\n";
+    out << "ignore_injected=" << (cfg.ignore_injected ? "true" : "false") << "\n\n";
+    out << "# Max press duration in milliseconds to translate as a click (10-5000)\n";
+    out << "click_time_ms=" << cfg.click_time_ms << "\n\n";
+    out << "# Max pointer movement radius in pixels to still translate as click (0-100)\n";
+    out << "move_radius_px=" << cfg.move_radius_px << "\n\n";
+    out << "# Logging level: error|warn|info|debug\n";
     out << "log_level=" << cfg.log_level << "\n";
-    if (!cfg.log_file.empty()) out << "log_file=" << cfg.log_file << "\n";
+    if (!cfg.log_file.empty()) {
+        out << "# Log file path (optional)\n";
+        out << "log_file=" << cfg.log_file << "\n";
+    }
     out.flush();
     return out.good();
 }

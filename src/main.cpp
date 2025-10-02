@@ -67,6 +67,9 @@ static void print_help() {
     std::cout << "Usage: altrightclick [options]\n"
                  "\nOptions:\n"
                  "  --config <path>        Use explicit config file path\n"
+                 "  --generate-config      Write a default config (and exit)\n"
+                 "  --log-level <lvl>      Set logging level (error|warn|info|debug)\n"
+                 "  --log-file <path>      Append logs to file\n"
                  "  --install              Install Windows service\n"
                  "  --uninstall            Uninstall Windows service\n"
                  "  --start                Start Windows service\n"
@@ -89,10 +92,13 @@ int main(int argc, char **argv) {
     bool do_task_install = false, do_task_uninstall = false, do_task_update = false, do_task_status = false;
     std::string cli_log_level;
     std::string cli_log_file;
+    bool do_generate_config = false;
     for (int i = 1; i < argc; ++i) {
         std::string a = argv[i];
         if (a == "--config" && i + 1 < argc) {
             config_path = argv[++i];
+        } else if (a == "--generate-config") {
+            do_generate_config = true;
         } else if (a == "--log-level" && i + 1 < argc) {
             cli_log_level = argv[++i];
         } else if (a == "--log-file" && i + 1 < argc) {
@@ -124,6 +130,17 @@ int main(int argc, char **argv) {
     }
 
     const std::wstring svcName = L"AltRightClickService";
+
+    // Generate config and exit
+    if (do_generate_config) {
+        arc::Config defaults;
+        if (arc::save_config(config_path, defaults)) {
+            std::cout << "Wrote default config to " << config_path << std::endl;
+            return 0;
+        }
+        std::cerr << "Failed to write config to " << config_path << std::endl;
+        return 1;
+    }
     if (do_install || do_uninstall || do_start || do_stop || do_service_status) {
         if (!is_elevated()) {
             std::cerr << "Service commands require Administrator privileges.\n"
@@ -194,6 +211,14 @@ int main(int argc, char **argv) {
     if (!instance.acquired()) {
         arc::log_warn("altrightclick is already running.");
         return 0;
+    }
+    // Auto-create default config on first run if missing
+    {
+        std::ifstream f(config_path);
+        if (!f.good()) {
+            arc::Config defaults;
+            arc::save_config(config_path, defaults);
+        }
     }
     arc::Config cfg = arc::load_config(config_path);
     if (!cli_log_level.empty()) cfg.log_level = cli_log_level;

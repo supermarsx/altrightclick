@@ -41,6 +41,7 @@ Notes:
 
 ## CLI Arguments
 - `--config <path>`: use a specific config file
+- `--generate-config`: write a default config (with comments) to the resolved path and exit
 - `--log-level <error|warn|info|debug>`: override logging level (default: info)
 - `--log-file <path>`: append logs to a file in addition to console
 - `--install`: install a Windows service (auto-start)
@@ -63,6 +64,10 @@ Examples:
 Default search order:
 1) `<exe_dir>\config.ini`
 2) `%APPDATA%\altrightclick\config.ini`
+
+First run:
+- If the config file is missing, the app creates the folder and writes a default config (with comments).
+- Use `--generate-config` to force writing defaults and then exit.
 
 Keys (case-insensitive):
 - `enabled=true|false` (default: true)
