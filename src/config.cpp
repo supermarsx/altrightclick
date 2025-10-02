@@ -73,6 +73,20 @@ Config load_config(const std::string &path) {
                 cfg.exit_vk = vk;
         } else if (key == "ignore_injected") {
             cfg.ignore_injected = (vall == "1" || vall == "true" || vall == "yes");
+        } else if (key == "click_time_ms") {
+            try {
+                unsigned int v = static_cast<unsigned int>(std::stoul(vall));
+                if (v > 0 && v < 5000)
+                    cfg.click_time_ms = v;
+            } catch (...) {
+            }
+        } else if (key == "move_radius_px") {
+            try {
+                int v = std::stoi(vall);
+                if (v >= 0 && v < 100)
+                    cfg.move_radius_px = v;
+            } catch (...) {
+            }
         }
     }
     return cfg;

@@ -67,7 +67,9 @@ Keys (case-insensitive):
 - `show_tray=true|false` (default: true)
 - `modifier=ALT|CTRL|SHIFT|WIN` (default: ALT)
 - `exit_key=ESC|F12` (default: ESC)
- - `ignore_injected=true|false` (default: true) — ignore externally injected mouse events
+- `ignore_injected=true|false` (default: true) — ignore externally injected mouse events
+ - `click_time_ms=<uint>` (default: 250) — max press duration to translate click
+ - `move_radius_px=<int>` (default: 6) — max pointer movement radius to still translate as click
 
 Example: see `config.example.ini:1`.
 

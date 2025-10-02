@@ -13,12 +13,17 @@ struct Config {
     unsigned int exit_vk = 0x1B;  // VK_ESCAPE
     // Ignore externally injected mouse events (LLMHF_INJECTED/LLMHF_LOWER_IL_INJECTED)
     bool ignore_injected = true;
+    // Click vs drag discrimination (defaults)
+    // Maximum press duration (ms) to treat as a click
+    unsigned int click_time_ms = 250;
+    // Maximum movement radius (pixels) to treat as a click
+    int move_radius_px = 6;
 };
 
 // Loads configuration from file path. If not found, keeps defaults.
 // Supports simple key=value lines (case-insensitive keys):
 // enabled=true|false, show_tray=true|false, modifier=ALT|CTRL|SHIFT|WIN, exit_key=ESC|F12
-// ignore_injected=true|false
+// ignore_injected=true|false, click_time_ms=<uint>, move_radius_px=<int>
 Config load_config(const std::string &path);
 
 // Finds a default config path: <exe_dir>\\config.ini if present, otherwise
