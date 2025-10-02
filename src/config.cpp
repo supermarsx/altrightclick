@@ -71,6 +71,8 @@ Config load_config(const std::string &path) {
             unsigned int vk = vk_from_str(val);
             if (vk)
                 cfg.exit_vk = vk;
+        } else if (key == "ignore_injected") {
+            cfg.ignore_injected = (vall == "1" || vall == "true" || vall == "yes");
         }
     }
     return cfg;

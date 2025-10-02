@@ -11,11 +11,14 @@ struct Config {
     unsigned int modifier_vk = 0x12;  // VK_MENU
     // Exit key to stop the app when not running as service
     unsigned int exit_vk = 0x1B;  // VK_ESCAPE
+    // Ignore externally injected mouse events (LLMHF_INJECTED/LLMHF_LOWER_IL_INJECTED)
+    bool ignore_injected = true;
 };
 
 // Loads configuration from file path. If not found, keeps defaults.
 // Supports simple key=value lines (case-insensitive keys):
 // enabled=true|false, show_tray=true|false, modifier=ALT|CTRL|SHIFT|WIN, exit_key=ESC|F12
+// ignore_injected=true|false
 Config load_config(const std::string &path);
 
 // Finds a default config path: <exe_dir>\\config.ini if present, otherwise

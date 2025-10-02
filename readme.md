@@ -67,6 +67,7 @@ Keys (case-insensitive):
 - `show_tray=true|false` (default: true)
 - `modifier=ALT|CTRL|SHIFT|WIN` (default: ALT)
 - `exit_key=ESC|F12` (default: ESC)
+ - `ignore_injected=true|false` (default: true) — ignore externally injected mouse events
 
 Example: see `config.example.ini:1`.
 

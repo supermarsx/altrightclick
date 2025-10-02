@@ -17,7 +17,8 @@ bool run_schtasks(const std::wstring& args) {
     si.cb = sizeof(si);
     PROCESS_INFORMATION pi{};
     std::wstring mutable_cmd = cmd;
-    if (!CreateProcessW(nullptr, mutable_cmd.data(), nullptr, nullptr, FALSE, CREATE_NO_WINDOW, nullptr, nullptr, &si, &pi)) {
+    if (!CreateProcessW(nullptr, mutable_cmd.data(), nullptr, nullptr, FALSE, CREATE_NO_WINDOW, nullptr, nullptr, &si,
+                        &pi)) {
         return false;
     }
     WaitForSingleObject(pi.hProcess, INFINITE);
@@ -55,4 +56,3 @@ bool task_update(const std::wstring& name, const std::wstring& exe_with_args, bo
 }
 
 }  // namespace arc
-
