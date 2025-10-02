@@ -7,5 +7,5 @@ AccessModifierOffset: -4
 BreakBeforeBraces: Attach
 AllowShortIfStatementsOnASingleLine: false
 AllowShortFunctionsOnASingleLine: All
-Standard: Cpp17
+Standard: c++17
 SortIncludes: false
