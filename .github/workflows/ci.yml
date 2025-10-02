@@ -1,0 +1,74 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  format_lint:
+    name: Format & Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-format
+          python3 -m pip install --upgrade pip
+          pip3 install cpplint
+
+      - name: Check formatting (clang-format)
+        run: |
+          set -e
+          files=$(git ls-files '*.c' '*.cc' '*.cpp' '*.cxx' '*.h' '*.hpp' | tr '\n' ' ')
+          if [ -n "$files" ]; then
+            echo "Checking formatting on:" $files
+            clang-format --version
+            # Format in-place then ensure no diffs
+            clang-format -i $files
+            git diff --exit-code
+          fi
+
+      - name: Lint (cpplint)
+        continue-on-error: true
+        run: |
+          files=$(git ls-files 'src/*.cpp' 'include/**/*.h' 2>/dev/null || true)
+          if [ -n "$files" ]; then
+            echo "Running cpplint (non-blocking)" 
+            cpplint --filter=-legal/copyright $files || true
+          fi
+
+  build_test_x64:
+    name: Build & Test (x64)
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure (x64)
+        run: cmake -S . -B build/x64 -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build (x64)
+        run: cmake --build build/x64 --config Release -- /m
+
+      - name: Test (x64)
+        run: |
+          cd build/x64
+          ctest -C Release --output-on-failure
+
+  build_arm64:
+    name: Build (ARM64)
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure (ARM64)
+        run: cmake -S . -B build/arm64 -G "Visual Studio 17 2022" -A ARM64 -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build (ARM64)
+        run: cmake --build build/arm64 --config Release -- /m
+

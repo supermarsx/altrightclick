@@ -1,0 +1,50 @@
+name: Rolling Release
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build-and-release:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure + Build (x64)
+        run: |
+          cmake -S . -B build/x64 -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=Release
+          cmake --build build/x64 --config Release -- /m
+
+      - name: Configure + Build (ARM64)
+        run: |
+          cmake -S . -B build/arm64 -G "Visual Studio 17 2022" -A ARM64 -DCMAKE_BUILD_TYPE=Release
+          cmake --build build/arm64 --config Release -- /m
+
+      - name: Package artifacts
+        shell: pwsh
+        run: |
+          New-Item -Type Directory dist/x64, dist/arm64 | Out-Null
+          Copy-Item build/x64/Release/altrightclick.exe dist/x64/
+          Copy-Item build/arm64/Release/altrightclick.exe dist/arm64/
+          Copy-Item config.example.ini dist/x64/ -ErrorAction SilentlyContinue
+          Copy-Item config.example.ini dist/arm64/ -ErrorAction SilentlyContinue
+          Copy-Item readme.md dist/x64/ -ErrorAction SilentlyContinue
+          Copy-Item license.md dist/x64/ -ErrorAction SilentlyContinue
+          Copy-Item readme.md dist/arm64/ -ErrorAction SilentlyContinue
+          Copy-Item license.md dist/arm64/ -ErrorAction SilentlyContinue
+          Compress-Archive -Path dist/x64/* -DestinationPath dist/altrightclick-windows-x64.zip -Force
+          Compress-Archive -Path dist/arm64/* -DestinationPath dist/altrightclick-windows-arm64.zip -Force
+
+      - name: Publish Rolling Release
+        uses: ncipollo/release-action@v1
+        with:
+          tag: rolling
+          name: Rolling Release
+          draft: false
+          prerelease: true
+          allowUpdates: true
+          replacesArtifacts: true
+          artifacts: dist/altrightclick-windows-x64.zip,dist/altrightclick-windows-arm64.zip
+
