@@ -30,4 +30,7 @@ Config load_config(const std::string &path);
 // %APPDATA%\\altrightclick\\config.ini
 std::string default_config_path();
 
+// Save configuration back to the given path. Returns true on success.
+bool save_config(const std::string &path, const Config &cfg);
+
 }  // namespace arc

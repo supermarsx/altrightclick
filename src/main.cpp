@@ -157,7 +157,8 @@ int main(int argc, char **argv) {
 
     HWND hwndTray = nullptr;
     if (cfg.show_tray) {
-        hwndTray = arc::tray_init(GetModuleHandleW(nullptr), L"AltRightClick running (Alt+Left => Right)");
+        arc::TrayContext ctx{&cfg, &config_path};
+        hwndTray = arc::tray_init(GetModuleHandleW(nullptr), L"AltRightClick running (Alt+Left => Right)", &ctx);
     }
 
     arc::run_message_loop(cfg.exit_vk);

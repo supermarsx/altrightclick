@@ -127,4 +127,28 @@ std::string default_config_path() {
     return local;  // fallback
 }
 
+bool save_config(const std::string &path, const Config &cfg) {
+    std::ofstream out(path, std::ios::trunc);
+    if (!out.is_open()) {
+        return false;
+    }
+    out << "# altrightclick config\n";
+    out << "enabled=" << (cfg.enabled ? "true" : "false") << "\n";
+    out << "show_tray=" << (cfg.show_tray ? "true" : "false") << "\n";
+    // Map modifier back to string
+    std::string mod = "ALT";
+    if (cfg.modifier_vk == VK_CONTROL) mod = "CTRL";
+    else if (cfg.modifier_vk == VK_SHIFT) mod = "SHIFT";
+    else if (cfg.modifier_vk == VK_LWIN) mod = "WIN";
+    out << "modifier=" << mod << "\n";
+    // Exit key
+    std::string exitk = (cfg.exit_vk == VK_F12) ? "F12" : "ESC";
+    out << "exit_key=" << exitk << "\n";
+    out << "ignore_injected=" << (cfg.ignore_injected ? "true" : "false") << "\n";
+    out << "click_time_ms=" << cfg.click_time_ms << "\n";
+    out << "move_radius_px=" << cfg.move_radius_px << "\n";
+    out.flush();
+    return out.good();
+}
+
 }  // namespace arc

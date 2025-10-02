@@ -2,15 +2,40 @@
 
 #include <shellapi.h>
 
+#include <algorithm>
+
+#include "arc/config.h"
+#include "arc/hook.h"
+
 namespace {
 constexpr UINT WM_TRAYICON = WM_APP + 1;
 NOTIFYICONDATAW g_nid{};
 
-HMENU create_tray_menu() {
+enum MenuId : UINT {
+    kMenuExit = 1,
+    kMenuClickTimeInc = 100,
+    kMenuClickTimeDec = 101,
+    kMenuMoveRadiusInc = 102,
+    kMenuMoveRadiusDec = 103,
+    kMenuToggleIgnoreInjected = 104,
+    kMenuSaveConfig = 105,
+};
+
+HMENU create_tray_menu(const arc::TrayContext* ctx) {
     HMENU menu = CreatePopupMenu();
-    AppendMenuW(menu, MF_STRING, 1, L"Exit");
+    AppendMenuW(menu, MF_STRING, kMenuClickTimeInc, L"Click Time +10 ms");
+    AppendMenuW(menu, MF_STRING, kMenuClickTimeDec, L"Click Time -10 ms");
+    AppendMenuW(menu, MF_STRING, kMenuMoveRadiusInc, L"Move Radius +1 px");
+    AppendMenuW(menu, MF_STRING, kMenuMoveRadiusDec, L"Move Radius -1 px");
+    AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
+    std::wstring inj = L"Ignore Injected: ";
+    inj += (ctx && ctx->cfg && ctx->cfg->ignore_injected) ? L"ON" : L"OFF";
+    AppendMenuW(menu, MF_STRING, kMenuToggleIgnoreInjected, inj.c_str());
+    AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
+    AppendMenuW(menu, MF_STRING, kMenuSaveConfig, L"Save Settings");
+    AppendMenuW(menu, MF_STRING, kMenuExit, L"Exit");
     return menu;
-}  // namespace
+}
 
 LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     switch (msg) {
@@ -19,10 +44,46 @@ LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
             POINT pt;
             GetCursorPos(&pt);
             SetForegroundWindow(hwnd);
-            HMENU menu = create_tray_menu();
+            auto* ctx = reinterpret_cast<arc::TrayContext*>(GetWindowLongPtr(hwnd, GWLP_USERDATA));
+            HMENU menu = create_tray_menu(ctx);
             UINT cmd = TrackPopupMenu(menu, TPM_RETURNCMD | TPM_NONOTIFY, pt.x, pt.y, 0, hwnd, nullptr);
             DestroyMenu(menu);
-            if (cmd == 1) {
+            if (ctx && ctx->cfg) {
+                switch (cmd) {
+                case kMenuClickTimeInc:
+                    ctx->cfg->click_time_ms =
+                        static_cast<unsigned int>(std::min<int>(ctx->cfg->click_time_ms + 10, 5000));
+                    arc::apply_hook_config(*ctx->cfg);
+                    break;
+                case kMenuClickTimeDec:
+                    ctx->cfg->click_time_ms = static_cast<unsigned int>(
+                        std::max<int>(static_cast<int>(ctx->cfg->click_time_ms) - 10, 10));
+                    arc::apply_hook_config(*ctx->cfg);
+                    break;
+                case kMenuMoveRadiusInc:
+                    ctx->cfg->move_radius_px = std::min(ctx->cfg->move_radius_px + 1, 100);
+                    arc::apply_hook_config(*ctx->cfg);
+                    break;
+                case kMenuMoveRadiusDec:
+                    ctx->cfg->move_radius_px = std::max(ctx->cfg->move_radius_px - 1, 0);
+                    arc::apply_hook_config(*ctx->cfg);
+                    break;
+                case kMenuToggleIgnoreInjected:
+                    ctx->cfg->ignore_injected = !ctx->cfg->ignore_injected;
+                    arc::apply_hook_config(*ctx->cfg);
+                    break;
+                case kMenuSaveConfig:
+                    if (ctx->config_path && !ctx->config_path->empty()) {
+                        arc::save_config(*ctx->config_path, *ctx->cfg);
+                    }
+                    break;
+                case kMenuExit:
+                    PostQuitMessage(0);
+                    break;
+                default:
+                    break;
+                }
+            } else if (cmd == kMenuExit) {
                 PostQuitMessage(0);
             }
         }
@@ -39,7 +100,7 @@ LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
 
 namespace arc {
 
-HWND tray_init(HINSTANCE hInstance, const std::wstring &tooltip) {
+HWND tray_init(HINSTANCE hInstance, const std::wstring &tooltip, arc::TrayContext* ctx) {
     const wchar_t *kClassName = L"AltRightClickTrayWindow";
     WNDCLASSEXW wc{sizeof(WNDCLASSEXW)};
     wc.lpfnWndProc = TrayWndProc;
@@ -52,6 +113,10 @@ HWND tray_init(HINSTANCE hInstance, const std::wstring &tooltip) {
 
     HWND hwnd = CreateWindowExW(0, kClassName, L"AltRightClick", WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT,
                                 CW_USEDEFAULT, CW_USEDEFAULT, nullptr, nullptr, hInstance, nullptr);
+
+    if (ctx) {
+        SetWindowLongPtr(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(ctx));
+    }
 
     // Prepare tray icon data
     memset(&g_nid, 0, sizeof(g_nid));
