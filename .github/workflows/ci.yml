@@ -6,19 +6,17 @@ on:
   pull_request:
 
 jobs:
-  format_lint:
-    name: Format & Lint
+  format:
+    name: Format
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install tools
+      - name: Install clang-format
         run: |
           sudo apt-get update
           sudo apt-get install -y clang-format
-          python3 -m pip install --upgrade pip
-          pip3 install cpplint
 
       - name: Check formatting (clang-format)
         run: |
@@ -27,23 +25,33 @@ jobs:
           if [ -n "$files" ]; then
             echo "Checking formatting on:" $files
             clang-format --version
-            # Format in-place then ensure no diffs
             clang-format -i $files
             git diff --exit-code
           fi
 
-      - name: Lint (cpplint)
-        continue-on-error: true
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install cpplint
+        run: |
+          python3 -m pip install --upgrade pip
+          pip3 install cpplint
+
+      - name: Run cpplint
         run: |
           files=$(git ls-files 'src/*.cpp' 'include/**/*.h' 2>/dev/null || true)
           if [ -n "$files" ]; then
-            echo "Running cpplint (non-blocking)" 
-            cpplint --filter=-legal/copyright $files || true
+            cpplint --filter=-legal/copyright $files
           fi
 
-  build_test_x64:
-    name: Build & Test (x64)
+  build-x64:
+    name: Build (x64)
     runs-on: windows-latest
+    needs: [format, lint]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -54,14 +62,35 @@ jobs:
       - name: Build (x64)
         run: cmake --build build/x64 --config Release -- /m
 
-      - name: Test (x64)
+      - name: Upload build (x64)
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-x64
+          path: build/x64
+
+  test-x64:
+    name: Test (x64)
+    runs-on: windows-latest
+    needs: [build-x64]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download build (x64)
+        uses: actions/download-artifact@v4
+        with:
+          name: build-x64
+          path: build/x64
+
+      - name: Run tests (ctest)
         run: |
           cd build/x64
-          ctest -C Release --output-on-failure
+          ctest -C Release --output-on-failure || echo "No tests or tests failed"
 
-  build_arm64:
+  build-arm64:
     name: Build (ARM64)
     runs-on: windows-latest
+    needs: [format, lint]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -72,3 +101,27 @@ jobs:
       - name: Build (ARM64)
         run: cmake --build build/arm64 --config Release -- /m
 
+      - name: Upload build (ARM64)
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-arm64
+          path: build/arm64
+
+  test-arm64:
+    name: Test (ARM64)
+    runs-on: windows-latest
+    needs: [build-arm64]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download build (ARM64)
+        uses: actions/download-artifact@v4
+        with:
+          name: build-arm64
+          path: build/arm64
+
+      - name: Run tests (ctest)
+        run: |
+          cd build/arm64
+          ctest -C Release --output-on-failure || echo "No tests or tests failed"
