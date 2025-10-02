@@ -30,6 +30,15 @@ altrightclick turns Alt + Left Click into a Right Click on Windows by installing
   - Stop: `altrightclick --stop`
   - Uninstall: `altrightclick --uninstall`
 
+## Install via Scoop
+- One‑shot install from manifest URL:
+  - `scoop install https://raw.githubusercontent.com/supermarsx/altrightclick/refs/heads/main/scoop/altrightclick.json`
+- Or add to a bucket (recommended if you fork):
+  - `scoop bucket add altrightclick https://github.com/supermarsx/altrightclick`
+  - `scoop install altrightclick`
+Notes:
+- Releases are tagged by date (e.g., `v0.1.yy.mm.dd`). Scoop manifest updates automatically after each rolling release.
+
 ## CLI Arguments
 - `--config <path>`: use a specific config file
 - `--install`: install a Windows service (auto-start)

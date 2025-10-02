@@ -97,6 +97,37 @@ jobs:
           echo "tag=v0.1.${DATE}" >> "$GITHUB_OUTPUT"
           echo "name=v0.1.${DATE}" >> "$GITHUB_OUTPUT"
 
+      - name: Compute checksums
+        run: |
+          cd dist
+          sha256sum altrightclick-windows-x64.zip > altrightclick-windows-x64.zip.sha256
+          sha256sum altrightclick-windows-arm64.zip > altrightclick-windows-arm64.zip.sha256
+
+      - name: Update Scoop manifest in repo
+        run: |
+          sudo apt-get update && sudo apt-get install -y jq
+          VER_NO_V="${{ steps.meta.outputs.name }}"  # same as tag without 'v' prefix
+          # Strip leading 'v' if present
+          VER_NO_V=${VER_NO_V#v}
+          X64_HASH=$(cut -d ' ' -f1 dist/altrightclick-windows-x64.zip.sha256)
+          ARM64_HASH=$(cut -d ' ' -f1 dist/altrightclick-windows-arm64.zip.sha256)
+          X64_URL="https://github.com/${{ github.repository }}/releases/download/${{ steps.meta.outputs.tag }}/altrightclick-windows-x64.zip"
+          ARM64_URL="https://github.com/${{ github.repository }}/releases/download/${{ steps.meta.outputs.tag }}/altrightclick-windows-arm64.zip"
+          jq \
+            --arg ver "$VER_NO_V" \
+            --arg x64 "$X64_URL" \
+            --arg a64 "$ARM64_URL" \
+            --arg xh "$X64_HASH" \
+            --arg ah "$ARM64_HASH" \
+            '.version=$ver | .architecture["64bit"].url=$x64 | .architecture["64bit"].hash=$xh | .architecture.arm64.url=$a64 | .architecture.arm64.hash=$ah' \
+            scoop/altrightclick.json > scoop/altrightclick.json.tmp
+          mv scoop/altrightclick.json.tmp scoop/altrightclick.json
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add scoop/altrightclick.json
+          git commit -m "scoop: update manifest to version $VER_NO_V" || echo "No changes to scoop manifest"
+          git push origin HEAD:${GITHUB_REF_NAME}
+
       - name: Publish
         uses: ncipollo/release-action@v1
         with:
@@ -106,7 +137,7 @@ jobs:
           prerelease: false
           allowUpdates: true
           replacesArtifacts: true
-          artifacts: dist/altrightclick-windows-x64.zip,dist/altrightclick-windows-arm64.zip
+          artifacts: dist/altrightclick-windows-x64.zip,dist/altrightclick-windows-arm64.zip,dist/altrightclick-windows-x64.zip.sha256,dist/altrightclick-windows-arm64.zip.sha256
           generateReleaseNotes: false
           immutableCreate: false
           makeLatest: true
