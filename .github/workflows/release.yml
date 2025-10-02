@@ -97,13 +97,13 @@ jobs:
           tag: rolling
           name: Rolling Release
           draft: false
-          prerelease: true
+          prerelease: false
           allowUpdates: true
           replacesArtifacts: true
           artifacts: dist/altrightclick-windows-x64.zip,dist/altrightclick-windows-arm64.zip
           generateReleaseNotes: false
           immutableCreate: false
-          makeLatest: legacy
+          makeLatest: true
           omitBody: false
           omitBodyDuringUpdate: false
           omitDraftDuringUpdate: false
