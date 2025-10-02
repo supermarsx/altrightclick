@@ -17,10 +17,11 @@ void ReportSvcStatus(DWORD dwCurrentState, DWORD dwWin32ExitCode, DWORD dwWaitHi
     g_SvcStatus.dwWin32ExitCode = dwWin32ExitCode;
     g_SvcStatus.dwWaitHint = dwWaitHint;
 
-    if (dwCurrentState == SERVICE_START_PENDING)
+    if (dwCurrentState == SERVICE_START_PENDING) {
         g_SvcStatus.dwControlsAccepted = 0;
-    else
+    } else {
         g_SvcStatus.dwControlsAccepted = SERVICE_ACCEPT_STOP | SERVICE_ACCEPT_SHUTDOWN;
+    }
 
     SetServiceStatus(g_SvcStatusHandle, &g_SvcStatus);
 }
@@ -68,11 +69,13 @@ std::wstring quote(const std::wstring& s) {
     return s;
 }
 
-} // namespace
+}  // namespace
 
 namespace arc {
 
-bool service_install(const std::wstring& name, const std::wstring& display_name, const std::wstring& bin_path_with_args) {
+bool service_install(const std::wstring& name,
+                     const std::wstring& display_name,
+                     const std::wstring& bin_path_with_args) {
     SC_HANDLE scm = OpenSCManagerW(nullptr, nullptr, SC_MANAGER_CREATE_SERVICE);
     if (!scm) return false;
 
@@ -150,4 +153,4 @@ int service_run(const std::wstring& name) {
     return 0;
 }
 
-} // namespace arc
+}  // namespace arc

@@ -8,11 +8,13 @@
 #include <cctype>
 #include <fstream>
 #include <sstream>
+#include <string>
 
 namespace arc {
 
 static std::string to_lower(std::string s) {
-    std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c){ return (char)std::tolower(c); });
+    std::transform(s.begin(), s.end(), s.begin(),
+                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
     return s;
 }
 
@@ -31,7 +33,7 @@ static unsigned int vk_from_str(const std::string& name) {
     if (n == "win" || n == "lwin") return VK_LWIN;
     if (n == "esc" || n == "escape") return VK_ESCAPE;
     if (n == "f12") return VK_F12;
-    return 0; // unknown -> ignored by caller
+    return 0;  // unknown -> ignored by caller
 }
 
 Config load_config(const std::string& path) {
@@ -93,7 +95,7 @@ std::string default_config_path() {
         if (bytes > 0) WideCharToMultiByte(CP_UTF8, 0, wpath.c_str(), -1, out.data(), bytes, nullptr, nullptr);
         return out;
     }
-    return local; // fallback
+    return local;  // fallback
 }
 
-} // namespace arc
+}  // namespace arc

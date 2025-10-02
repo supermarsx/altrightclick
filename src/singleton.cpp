@@ -22,5 +22,4 @@ std::wstring default_singleton_name() {
     return L"Local\\AltRightClick.Singleton";
 }
 
-} // namespace arc
-
+}  // namespace arc

@@ -12,4 +12,4 @@ HWND tray_init(HINSTANCE hInstance, const std::wstring& tooltip);
 // Removes the tray icon and destroys the hidden window.
 void tray_cleanup(HWND hwnd);
 
-} // namespace arc
+}  // namespace arc

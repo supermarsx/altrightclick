@@ -2,7 +2,9 @@
 
 #include <windows.h>
 
-namespace arc { struct Config; }
+namespace arc {
+struct Config;
+}
 
 namespace arc {
 
@@ -18,4 +20,4 @@ LRESULT CALLBACK LowLevelMouseProc(int nCode, WPARAM wParam, LPARAM lParam);
 // Configure hook behavior (e.g., modifier key) using loaded config.
 void apply_hook_config(const arc::Config& cfg);
 
-} // namespace arc
+}  // namespace arc

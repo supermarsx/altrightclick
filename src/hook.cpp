@@ -1,22 +1,23 @@
 #include "arc/hook.h"
-#include "arc/config.h"
 
 #include <windows.h>
 
+#include "arc/config.h"
+
 namespace {
-    HHOOK g_mouseHook = nullptr;
-    unsigned int g_modifier_vk = VK_MENU; // default ALT
-}
+HHOOK g_mouseHook = nullptr;
+unsigned int g_modifier_vk = VK_MENU;  // default ALT
+}  // namespace
 
 namespace arc {
 
 LRESULT CALLBACK LowLevelMouseProc(int nCode, WPARAM wParam, LPARAM lParam) {
     if (nCode == HC_ACTION) {
         PMSLLHOOKSTRUCT pMouse = reinterpret_cast<PMSLLHOOKSTRUCT>(lParam);
-        (void)pMouse; // currently unused; keep for potential future coords usage
+        (void)pMouse;  // currently unused; keep for potential future coords usage
 
         if (wParam == WM_LBUTTONDOWN) {
-            if (g_modifier_vk && (GetAsyncKeyState((int)g_modifier_vk) & 0x8000)) {
+            if (g_modifier_vk && (GetAsyncKeyState(static_cast<int>(g_modifier_vk)) & 0x8000)) {
                 INPUT input[2] = {};
 
                 input[0].type = INPUT_MOUSE;
@@ -26,7 +27,7 @@ LRESULT CALLBACK LowLevelMouseProc(int nCode, WPARAM wParam, LPARAM lParam) {
                 input[1].mi.dwFlags = MOUSEEVENTF_RIGHTUP;
 
                 SendInput(2, input, sizeof(INPUT));
-                return 1; // Block the left click event
+                return 1;  // Block the left click event
             }
         }
     }
@@ -50,4 +51,4 @@ void apply_hook_config(const arc::Config& cfg) {
     g_modifier_vk = cfg.modifier_vk;
 }
 
-} // namespace arc
+}  // namespace arc

@@ -10,7 +10,7 @@ HMENU create_tray_menu() {
     HMENU menu = CreatePopupMenu();
     AppendMenuW(menu, MF_STRING, 1, L"Exit");
     return menu;
-}
+}  // namespace
 
 LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     switch (msg) {
@@ -34,7 +34,7 @@ LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
     }
     return DefWindowProc(hwnd, msg, wParam, lParam);
 }
-}
+}  // namespace
 
 namespace arc {
 
@@ -60,7 +60,7 @@ HWND tray_init(HINSTANCE hInstance, const std::wstring& tooltip) {
     g_nid.uID = 1;
     g_nid.uFlags = NIF_ICON | NIF_TIP | NIF_MESSAGE;
     g_nid.uCallbackMessage = WM_TRAYICON;
-    g_nid.hIcon = LoadIcon(nullptr, IDI_APPLICATION); // Replace with custom icon if available
+    g_nid.hIcon = LoadIcon(nullptr, IDI_APPLICATION);  // Replace with custom icon if available
     wcsncpy_s(g_nid.szTip, tooltip.c_str(), _TRUNCATE);
 
     Shell_NotifyIconW(NIM_ADD, &g_nid);
@@ -75,4 +75,4 @@ void tray_cleanup(HWND hwnd) {
     if (hwnd) DestroyWindow(hwnd);
 }
 
-} // namespace arc
+}  // namespace arc

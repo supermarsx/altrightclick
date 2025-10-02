@@ -1,9 +1,10 @@
 // Main entry: tray app with optional service management via CLI.
 
+#include <windows.h>
+
 #include <iostream>
 #include <string>
 #include <vector>
-#include <windows.h>
 
 #include "arc/hook.h"
 #include "arc/app.h"
@@ -105,12 +106,14 @@ int main(int argc, char** argv) {
 
     HWND hwndTray = nullptr;
     if (cfg.show_tray) {
-        hwndTray = arc::tray_init(GetModuleHandleW(nullptr), L"AltRightClick running (Alt+Left => Right)" );
+        hwndTray = arc::tray_init(GetModuleHandleW(nullptr), L"AltRightClick running (Alt+Left => Right)");
     }
 
     arc::run_message_loop(cfg.exit_vk);
 
-    if (hwndTray) arc::tray_cleanup(hwndTray);
+    if (hwndTray) {
+        arc::tray_cleanup(hwndTray);
+    }
     arc::remove_mouse_hook();
     return 0;
 }

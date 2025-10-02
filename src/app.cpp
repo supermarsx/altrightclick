@@ -8,7 +8,7 @@ namespace arc {
 int run_message_loop(unsigned int exit_vk) {
     MSG msg;
     while (GetMessage(&msg, nullptr, 0, 0)) {
-        if (exit_vk && (GetAsyncKeyState((int)exit_vk) & 0x8000)) {
+        if (exit_vk && (GetAsyncKeyState(static_cast<int>(exit_vk)) & 0x8000)) {
             break;
         }
         TranslateMessage(&msg);
@@ -17,4 +17,4 @@ int run_message_loop(unsigned int exit_vk) {
     return 0;
 }
 
-} // namespace arc
+}  // namespace arc
