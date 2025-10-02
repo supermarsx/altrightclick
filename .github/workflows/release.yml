@@ -21,7 +21,11 @@ jobs:
 
       - name: Configure + Build (x64)
         run: |
-          cmake -S . -B build/x64 -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=Release
+          cmake -S . -B build/x64 -G "Visual Studio 17 2022" -A x64 \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_MSVC_DEBUG_INFORMATION_FORMAT=ProgramDatabase \
+            -DCMAKE_CXX_FLAGS_RELEASE="/Zi" \
+            -DCMAKE_EXE_LINKER_FLAGS_RELEASE="/DEBUG"
           cmake --build build/x64 --config Release -- /m
 
       - name: Package (x64)
@@ -29,16 +33,25 @@ jobs:
         run: |
           New-Item -Type Directory dist/x64 | Out-Null
           Copy-Item build/x64/Release/altrightclick.exe dist/x64/
+          if (Test-Path build/x64/Release/altrightclick.pdb) { Copy-Item build/x64/Release/altrightclick.pdb dist/x64/ }
           Copy-Item config.example.ini dist/x64/ -ErrorAction SilentlyContinue
           Copy-Item readme.md dist/x64/ -ErrorAction SilentlyContinue
           Copy-Item license.md dist/x64/ -ErrorAction SilentlyContinue
           Compress-Archive -Path dist/x64/* -DestinationPath dist/altrightclick-windows-x64.zip -Force
+          if (Test-Path dist/x64/altrightclick.pdb) { Compress-Archive -Path dist/x64/altrightclick.pdb -DestinationPath dist/altrightclick-windows-x64-pdb.zip -Force }
 
       - name: Upload artifact (x64)
         uses: actions/upload-artifact@v4
         with:
           name: altrightclick-windows-x64
           path: dist/altrightclick-windows-x64.zip
+
+      - name: Upload artifact (x64 PDB)
+        if: ${{ hashFiles('dist/altrightclick-windows-x64-pdb.zip') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: altrightclick-windows-x64-pdb
+          path: dist/altrightclick-windows-x64-pdb.zip
 
   build-arm64:
     name: Build (ARM64)
@@ -52,7 +65,11 @@ jobs:
 
       - name: Configure + Build (ARM64)
         run: |
-          cmake -S . -B build/arm64 -G "Visual Studio 17 2022" -A ARM64 -DCMAKE_BUILD_TYPE=Release
+          cmake -S . -B build/arm64 -G "Visual Studio 17 2022" -A ARM64 \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_MSVC_DEBUG_INFORMATION_FORMAT=ProgramDatabase \
+            -DCMAKE_CXX_FLAGS_RELEASE="/Zi" \
+            -DCMAKE_EXE_LINKER_FLAGS_RELEASE="/DEBUG"
           cmake --build build/arm64 --config Release -- /m
 
       - name: Package (ARM64)
@@ -60,16 +77,25 @@ jobs:
         run: |
           New-Item -Type Directory dist/arm64 | Out-Null
           Copy-Item build/arm64/Release/altrightclick.exe dist/arm64/
+          if (Test-Path build/arm64/Release/altrightclick.pdb) { Copy-Item build/arm64/Release/altrightclick.pdb dist/arm64/ }
           Copy-Item config.example.ini dist/arm64/ -ErrorAction SilentlyContinue
           Copy-Item readme.md dist/arm64/ -ErrorAction SilentlyContinue
           Copy-Item license.md dist/arm64/ -ErrorAction SilentlyContinue
           Compress-Archive -Path dist/arm64/* -DestinationPath dist/altrightclick-windows-arm64.zip -Force
+          if (Test-Path dist/arm64/altrightclick.pdb) { Compress-Archive -Path dist/arm64/altrightclick.pdb -DestinationPath dist/altrightclick-windows-arm64-pdb.zip -Force }
 
       - name: Upload artifact (ARM64)
         uses: actions/upload-artifact@v4
         with:
           name: altrightclick-windows-arm64
           path: dist/altrightclick-windows-arm64.zip
+
+      - name: Upload artifact (ARM64 PDB)
+        if: ${{ hashFiles('dist/altrightclick-windows-arm64-pdb.zip') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: altrightclick-windows-arm64-pdb
+          path: dist/altrightclick-windows-arm64-pdb.zip
 
   publish:
     name: Publish Rolling Release
@@ -102,6 +128,8 @@ jobs:
           cd dist
           sha256sum altrightclick-windows-x64.zip > altrightclick-windows-x64.zip.sha256
           sha256sum altrightclick-windows-arm64.zip > altrightclick-windows-arm64.zip.sha256
+          if [ -f altrightclick-windows-x64-pdb.zip ]; then sha256sum altrightclick-windows-x64-pdb.zip > altrightclick-windows-x64-pdb.zip.sha256; fi
+          if [ -f altrightclick-windows-arm64-pdb.zip ]; then sha256sum altrightclick-windows-arm64-pdb.zip > altrightclick-windows-arm64-pdb.zip.sha256; fi
 
       - name: Update Scoop manifest in repo
         run: |
@@ -137,7 +165,15 @@ jobs:
           prerelease: false
           allowUpdates: true
           replacesArtifacts: true
-          artifacts: dist/altrightclick-windows-x64.zip,dist/altrightclick-windows-arm64.zip,dist/altrightclick-windows-x64.zip.sha256,dist/altrightclick-windows-arm64.zip.sha256
+          artifacts: |
+            dist/altrightclick-windows-x64.zip,
+            dist/altrightclick-windows-arm64.zip,
+            dist/altrightclick-windows-x64.zip.sha256,
+            dist/altrightclick-windows-arm64.zip.sha256,
+            dist/altrightclick-windows-x64-pdb.zip,
+            dist/altrightclick-windows-arm64-pdb.zip,
+            dist/altrightclick-windows-x64-pdb.zip.sha256,
+            dist/altrightclick-windows-arm64-pdb.zip.sha256
           generateReleaseNotes: false
           immutableCreate: false
           makeLatest: true
