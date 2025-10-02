@@ -1,7 +1,6 @@
 name: Rolling Release
 
 on:
-  workflow_dispatch:
   workflow_run:
     workflows: ["CI"]
     types: [completed]
@@ -13,12 +12,12 @@ jobs:
   build-x64:
     name: Build (x64)
     runs-on: windows-latest
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+          ref: ${{ github.event.workflow_run.head_sha }}
 
       - name: Configure + Build (x64)
         run: |
@@ -44,12 +43,12 @@ jobs:
   build-arm64:
     name: Build (ARM64)
     runs-on: windows-latest
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+          ref: ${{ github.event.workflow_run.head_sha }}
 
       - name: Configure + Build (ARM64)
         run: |
@@ -76,7 +75,7 @@ jobs:
     name: Publish Rolling Release
     runs-on: ubuntu-latest
     needs: [build-x64, build-arm64]
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4

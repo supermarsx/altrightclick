@@ -7,7 +7,7 @@ namespace arc {
 
 // RAII guard to enforce a single running instance using a named mutex.
 class SingletonGuard {
-public:
+ public:
     // Create a guard on a named mutex. Use a prefix like "Local\\" for per-session.
     explicit SingletonGuard(const std::wstring &name);
     ~SingletonGuard();
@@ -15,7 +15,7 @@ public:
     // Returns true if this process acquired singleton ownership (i.e., no prior instance).
     bool acquired() const { return acquired_; }
 
-private:
+ private:
     HANDLE handle_ = nullptr;
     bool acquired_ = false;
 };
