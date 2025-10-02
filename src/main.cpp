@@ -13,10 +13,11 @@
 #include "arc/service.h"
 #include "arc/singleton.h"
 
-static std::wstring to_w(const std::string& s) {
+static std::wstring to_w(const std::string &s) {
     int n = MultiByteToWideChar(CP_UTF8, 0, s.c_str(), -1, nullptr, 0);
     std::wstring w(n ? n - 1 : 0, L'\0');
-    if (n) MultiByteToWideChar(CP_UTF8, 0, s.c_str(), -1, w.data(), n);
+    if (n)
+        MultiByteToWideChar(CP_UTF8, 0, s.c_str(), -1, w.data(), n);
     return w;
 }
 
@@ -38,7 +39,7 @@ static void print_help() {
                  "  --help                 Show this help\n";
 }
 
-int main(int argc, char** argv) {
+int main(int argc, char **argv) {
     std::string config_path = arc::default_config_path();
 
     // Parse args
@@ -71,10 +72,14 @@ int main(int argc, char** argv) {
             cmd += L" --config \"" + to_w(config_path) + L"\"";
         }
         bool ok = true;
-        if (do_install) ok = ok && arc::service_install(svcName, L"Alt Right Click", cmd);
-        if (do_uninstall) ok = ok && arc::service_uninstall(svcName);
-        if (do_start) ok = ok && arc::service_start(svcName);
-        if (do_stop) ok = ok && arc::service_stop(svcName);
+        if (do_install)
+            ok = ok && arc::service_install(svcName, L"Alt Right Click", cmd);
+        if (do_uninstall)
+            ok = ok && arc::service_uninstall(svcName);
+        if (do_start)
+            ok = ok && arc::service_start(svcName);
+        if (do_stop)
+            ok = ok && arc::service_stop(svcName);
         std::cout << (ok ? "OK" : "FAILED") << std::endl;
         return ok ? 0 : 1;
     }

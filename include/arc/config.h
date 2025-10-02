@@ -16,7 +16,7 @@ struct Config {
 // Loads configuration from file path. If not found, keeps defaults.
 // Supports simple key=value lines (case-insensitive keys):
 // enabled=true|false, show_tray=true|false, modifier=ALT|CTRL|SHIFT|WIN, exit_key=ESC|F12
-Config load_config(const std::string& path);
+Config load_config(const std::string &path);
 
 // Finds a default config path: <exe_dir>\\config.ini if present, otherwise
 // %APPDATA%\\altrightclick\\config.ini

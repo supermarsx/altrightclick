@@ -2,7 +2,7 @@
 
 namespace arc {
 
-SingletonGuard::SingletonGuard(const std::wstring& name) {
+SingletonGuard::SingletonGuard(const std::wstring &name) {
     // Create the named mutex. If it already exists, GetLastError() == ERROR_ALREADY_EXISTS.
     handle_ = CreateMutexW(nullptr, FALSE, name.c_str());
     if (handle_ != nullptr) {

@@ -47,8 +47,6 @@ void remove_mouse_hook() {
     }
 }
 
-void apply_hook_config(const arc::Config& cfg) {
-    g_modifier_vk = cfg.modifier_vk;
-}
+void apply_hook_config(const arc::Config &cfg) { g_modifier_vk = cfg.modifier_vk; }
 
 }  // namespace arc
