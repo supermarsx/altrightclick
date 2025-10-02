@@ -146,7 +146,8 @@ LRESULT CALLBACK LowLevelMouseProc(int nCode, WPARAM wParam, LPARAM lParam) {
 }
 
 bool install_mouse_hook() {
-    g_mouseHook = SetWindowsHookEx(WH_MOUSE_LL, LowLevelMouseProc, nullptr, 0);
+    HINSTANCE hInst = GetModuleHandleW(nullptr);
+    g_mouseHook = SetWindowsHookEx(WH_MOUSE_LL, LowLevelMouseProc, hInst, 0);
     return g_mouseHook != nullptr;
 }
 
