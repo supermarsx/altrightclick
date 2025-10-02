@@ -4,6 +4,7 @@
 
 #include <atomic>
 #include <thread>
+#include <vector>
 
 #include "arc/config.h"
 #include "arc/log.h"
@@ -16,6 +17,8 @@ const ULONG_PTR kArcInjectedTag = 0xA17C1C00;  // tag our injected events
 std::atomic<bool> g_hookRunning{false};
 DWORD g_hookThreadId = 0;
 std::thread g_hookThread;
+std::vector<unsigned int> g_modifier_combo;   // support modifier combos
+arc::Config::Trigger g_trigger = arc::Config::Trigger::Left;
 
 // Click/drag discrimination
 bool g_tracking = false;
@@ -46,13 +49,56 @@ LRESULT CALLBACK LowLevelMouseProc(int nCode, WPARAM wParam, LPARAM lParam) {
             return CallNextHookEx(g_mouseHook, nCode, wParam, lParam);
         }
 
-        if (wParam == WM_LBUTTONDOWN) {
-            if (g_modifier_vk && (GetAsyncKeyState(static_cast<int>(g_modifier_vk)) & 0x8000)) {
+        auto all_mods_down = []() -> bool {
+            if (!g_modifier_combo.empty()) {
+                for (auto vk : g_modifier_combo) {
+                    if (!(GetAsyncKeyState(static_cast<int>(vk)) & 0x8000)) return false;
+                }
+                return true;
+            }
+            return g_modifier_vk ? (GetAsyncKeyState(static_cast<int>(g_modifier_vk)) & 0x8000) != 0 : true;
+        };
+
+        auto is_down = [&](WPARAM wp, const MSLLHOOKSTRUCT* m) -> bool {
+            (void)m;
+            switch (g_trigger) {
+            case arc::Config::Trigger::Left: return wp == WM_LBUTTONDOWN;
+            case arc::Config::Trigger::Middle: return wp == WM_MBUTTONDOWN;
+            case arc::Config::Trigger::X1:
+            case arc::Config::Trigger::X2:
+                if (wp == WM_XBUTTONDOWN) {
+                    WORD xb = HIWORD(m->mouseData);
+                    return (g_trigger == arc::Config::Trigger::X1 && xb == XBUTTON1) ||
+                           (g_trigger == arc::Config::Trigger::X2 && xb == XBUTTON2);
+                }
+                return false;
+            }
+            return false;
+        };
+        auto is_up = [&](WPARAM wp, const MSLLHOOKSTRUCT* m) -> bool {
+            (void)m;
+            switch (g_trigger) {
+            case arc::Config::Trigger::Left: return wp == WM_LBUTTONUP;
+            case arc::Config::Trigger::Middle: return wp == WM_MBUTTONUP;
+            case arc::Config::Trigger::X1:
+            case arc::Config::Trigger::X2:
+                if (wp == WM_XBUTTONUP) {
+                    WORD xb = HIWORD(m->mouseData);
+                    return (g_trigger == arc::Config::Trigger::X1 && xb == XBUTTON1) ||
+                           (g_trigger == arc::Config::Trigger::X2 && xb == XBUTTON2);
+                }
+                return false;
+            }
+            return false;
+        };
+
+        if (is_down(wParam, pMouse)) {
+            if (all_mods_down()) {
                 // Begin tracking: suppress original left-down for potential translation
                 g_tracking = true;
                 g_startPt = pMouse->pt;
                 g_downTick = GetTickCount();
-                return 1;  // swallow original left-down
+                return 1;  // swallow original down
             }
         } else if (wParam == WM_MOUSEMOVE) {
             if (g_tracking) {
@@ -60,13 +106,21 @@ LRESULT CALLBACK LowLevelMouseProc(int nCode, WPARAM wParam, LPARAM lParam) {
                 if (distance_sq(pMouse->pt, g_startPt) > g_moveRadius * g_moveRadius) {
                     INPUT in{};
                     in.type = INPUT_MOUSE;
-                    in.mi.dwFlags = MOUSEEVENTF_LEFTDOWN;
+                    // Inject source button down depending on trigger
+                    if (g_trigger == arc::Config::Trigger::Left) {
+                        in.mi.dwFlags = MOUSEEVENTF_LEFTDOWN;
+                    } else if (g_trigger == arc::Config::Trigger::Middle) {
+                        in.mi.dwFlags = MOUSEEVENTF_MIDDLEDOWN;
+                    } else {
+                        in.mi.dwFlags = MOUSEEVENTF_XDOWN;
+                        in.mi.mouseData = (g_trigger == arc::Config::Trigger::X1) ? XBUTTON1 : XBUTTON2;
+                    }
                     in.mi.dwExtraInfo = kArcInjectedTag;
                     SendInput(1, &in, sizeof(INPUT));
                     g_tracking = false;
                 }
             }
-        } else if (wParam == WM_LBUTTONUP) {
+        } else if (is_up(wParam, pMouse)) {
             if (g_tracking) {
                 DWORD dt = GetTickCount() - g_downTick;
                 int d2 = distance_sq(pMouse->pt, g_startPt);
@@ -105,9 +159,11 @@ void remove_mouse_hook() {
 
 void apply_hook_config(const arc::Config &cfg) {
     g_modifier_vk = cfg.modifier_vk;
+    g_modifier_combo = cfg.modifier_combo_vks;
     g_ignore_injected = cfg.ignore_injected;
     g_clickTimeMs = cfg.click_time_ms;
     g_moveRadius = cfg.move_radius_px;
+    g_trigger = cfg.trigger;
 }
 
 bool start_hook_worker() {

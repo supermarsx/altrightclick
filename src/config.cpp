@@ -9,6 +9,7 @@
 #include <fstream>
 #include <sstream>
 #include <string>
+#include <vector>
 
 #include "arc/log.h"
 
@@ -44,6 +45,32 @@ static unsigned int vk_from_str(const std::string &name) {
     return 0;  // unknown -> ignored by caller
 }
 
+static void parse_modifier_combo(const std::string &val, std::vector<unsigned int> *out) {
+    out->clear();
+    std::string tmp;
+    for (size_t i = 0; i <= val.size(); ++i) {
+        char c = (i < val.size()) ? val[i] : ',';  // treat end as delimiter
+        if (c == '+' || c == ',') {
+            std::string tok = to_lower(trim(tmp));
+            if (!tok.empty()) {
+                unsigned int vk = vk_from_str(tok);
+                if (vk) out->push_back(vk);
+            }
+            tmp.clear();
+        } else {
+            tmp.push_back(c);
+        }
+    }
+}
+
+static Config::Trigger trigger_from_str(const std::string &name) {
+    std::string n = to_lower(name);
+    if (n == "middle" || n == "m" || n == "mbutton") return Config::Trigger::Middle;
+    if (n == "x1" || n == "xbutton1") return Config::Trigger::X1;
+    if (n == "x2" || n == "xbutton2") return Config::Trigger::X2;
+    return Config::Trigger::Left;
+}
+
 Config load_config(const std::string &path) {
     Config cfg;
     std::ifstream f(path);
@@ -66,9 +93,18 @@ Config load_config(const std::string &path) {
         } else if (key == "show_tray") {
             cfg.show_tray = (vall == "1" || vall == "true" || vall == "yes");
         } else if (key == "modifier") {
-            unsigned int vk = vk_from_str(val);
-            if (vk)
-                cfg.modifier_vk = vk;
+            // Allow combos: ALT+CTRL or ALT,CTRL; also back-compat single key
+            std::vector<unsigned int> mods;
+            parse_modifier_combo(val, &mods);
+            if (!mods.empty()) {
+                cfg.modifier_combo_vks = mods;
+                cfg.modifier_vk = mods.front();
+            } else {
+                unsigned int vk = vk_from_str(val);
+                if (vk) cfg.modifier_vk = vk;
+            }
+        } else if (key == "trigger") {
+            cfg.trigger = trigger_from_str(val);
         } else if (key == "exit_key") {
             unsigned int vk = vk_from_str(val);
             if (vk)
@@ -161,7 +197,31 @@ bool save_config(const std::string &path, const Config &cfg) {
     else if (cfg.modifier_vk == VK_SHIFT) mod = "SHIFT";
     else if (cfg.modifier_vk == VK_LWIN) mod = "WIN";
     out << "# Modifier key for translating left-click to right-click (ALT|CTRL|SHIFT|WIN)\n";
-    out << "modifier=" << mod << "\n\n";
+    out << "# Multiple modifiers allowed; e.g., ALT+CTRL or ALT,CTRL\n";
+    // Recompose from combo if present
+    if (!cfg.modifier_combo_vks.empty()) {
+        auto to_name = [](unsigned int vk) {
+            if (vk == VK_MENU) return "ALT";
+            if (vk == VK_CONTROL) return "CTRL";
+            if (vk == VK_SHIFT) return "SHIFT";
+            if (vk == VK_LWIN) return "WIN";
+            return "";
+        };
+        std::string combo;
+        for (size_t i = 0; i < cfg.modifier_combo_vks.size(); ++i) {
+            std::string t = to_name(cfg.modifier_combo_vks[i]);
+            if (t.empty()) continue;
+            if (!combo.empty()) combo += "+";
+            combo += t;
+        }
+        if (!combo.empty()) {
+            out << "modifier=" << combo << "\n\n";
+        } else {
+            out << "modifier=" << mod << "\n\n";
+        }
+    } else {
+        out << "modifier=" << mod << "\n\n";
+    }
     // Exit key
     std::string exitk = (cfg.exit_vk == VK_F12) ? "F12" : "ESC";
     out << "# Exit key to stop the app when not running as a service (ESC|F12)\n";
@@ -183,3 +243,9 @@ bool save_config(const std::string &path, const Config &cfg) {
 }
 
 }  // namespace arc
+    out << "# Source button to translate (LEFT|MIDDLE|X1|X2)\n";
+    const char* trig = "LEFT";
+    if (cfg.trigger == Config::Trigger::Middle) trig = "MIDDLE";
+    else if (cfg.trigger == Config::Trigger::X1) trig = "X1";
+    else if (cfg.trigger == Config::Trigger::X2) trig = "X2";
+    out << "trigger=" << trig << "\n\n";

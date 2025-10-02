@@ -73,12 +73,14 @@ Keys (case-insensitive):
 - `enabled=true|false` (default: true)
 - `show_tray=true|false` (default: true)
 - `modifier=ALT|CTRL|SHIFT|WIN` (default: ALT)
+ - `modifier=ALT|CTRL|SHIFT|WIN` (default: ALT). Multiple allowed via `+` or `,` (e.g., `ALT+CTRL`).
 - `exit_key=ESC|F12` (default: ESC)
 - `ignore_injected=true|false` (default: true) — ignore externally injected mouse events
 - `click_time_ms=<uint>` (default: 250) — max press duration to translate click
 - `move_radius_px=<int>` (default: 6) — max pointer movement radius to still translate as click
 - `log_level=error|warn|info|debug` (default: info)
 - `log_file=<path>` (default: empty; console only)
+ - `trigger=LEFT|MIDDLE|X1|X2` (default: LEFT) — source button to translate
 
 Example: see `config.example.ini:1`.
 
