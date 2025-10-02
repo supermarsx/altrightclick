@@ -155,7 +155,9 @@ HWND tray_init(HINSTANCE hInstance, const std::wstring &tooltip, arc::TrayContex
     g_nid.hIcon = LoadIcon(nullptr, IDI_APPLICATION);  // Replace with custom icon if available
     wcsncpy_s(g_nid.szTip, tooltip.c_str(), _TRUNCATE);
 
-    Shell_NotifyIconW(NIM_ADD, &g_nid);
+    if (!Shell_NotifyIconW(NIM_ADD, &g_nid)) {
+        arc::log_error("Shell_NotifyIconW(NIM_ADD) failed");
+    }
     return hwnd;
 }
 

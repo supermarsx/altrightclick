@@ -12,6 +12,8 @@
 #include "arc/config.h"
 #include "arc/service.h"
 #include "arc/singleton.h"
+#include "arc/task.h"
+#include "arc/log.h"
 
 static std::wstring to_w(const std::string &s) {
     int n = MultiByteToWideChar(CP_UTF8, 0, s.c_str(), -1, nullptr, 0);
@@ -51,10 +53,16 @@ int main(int argc, char **argv) {
     bool do_install = false, do_uninstall = false, do_start = false, do_stop = false, do_service_status = false,
          run_as_service = false;
     bool do_task_install = false, do_task_uninstall = false, do_task_update = false, do_task_status = false;
+    std::string cli_log_level;
+    std::string cli_log_file;
     for (int i = 1; i < argc; ++i) {
         std::string a = argv[i];
         if (a == "--config" && i + 1 < argc) {
             config_path = argv[++i];
+        } else if (a == "--log-level" && i + 1 < argc) {
+            cli_log_level = argv[++i];
+        } else if (a == "--log-file" && i + 1 < argc) {
+            cli_log_file = argv[++i];
         } else if (a == "--install") {
             do_install = true;
         } else if (a == "--uninstall") {
@@ -137,19 +145,24 @@ int main(int argc, char **argv) {
     // Normal interactive app: enforce single instance, load config, init hook, tray, message loop
     arc::SingletonGuard instance(arc::default_singleton_name());
     if (!instance.acquired()) {
-        std::cerr << "altrightclick is already running." << std::endl;
+        arc::log_warn("altrightclick is already running.");
         return 0;
     }
     arc::Config cfg = arc::load_config(config_path);
+    if (!cli_log_level.empty()) cfg.log_level = cli_log_level;
+    if (!cli_log_file.empty()) cfg.log_file = cli_log_file;
+    arc::log_set_level_by_name(cfg.log_level);
+    if (!cfg.log_file.empty()) arc::log_set_file(cfg.log_file);
+    arc::log_info(std::string("Using config: ") + config_path);
     arc::apply_hook_config(cfg);
 
     if (!cfg.enabled) {
-        std::cerr << "altrightclick: disabled in config." << std::endl;
+        arc::log_info("altrightclick: disabled in config.");
         return 0;
     }
 
     if (!arc::install_mouse_hook()) {
-        std::cerr << "Failed to install mouse hook!" << std::endl;
+        arc::log_error("Failed to install mouse hook!");
         return 1;
     }
 

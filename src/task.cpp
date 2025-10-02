@@ -4,6 +4,8 @@
 
 #include <string>
 
+#include "arc/log.h"
+
 namespace {
 
 std::wstring quote(const std::wstring& s) {
@@ -19,6 +21,7 @@ bool run_schtasks(const std::wstring& args) {
     std::wstring mutable_cmd = cmd;
     if (!CreateProcessW(nullptr, mutable_cmd.data(), nullptr, nullptr, FALSE, CREATE_NO_WINDOW, nullptr, nullptr, &si,
                         &pi)) {
+        arc::log_error("CreateProcessW(schtasks) failed: " + arc::last_error_message(GetLastError()));
         return false;
     }
     WaitForSingleObject(pi.hProcess, INFINITE);
@@ -26,6 +29,9 @@ bool run_schtasks(const std::wstring& args) {
     GetExitCodeProcess(pi.hProcess, &code);
     CloseHandle(pi.hThread);
     CloseHandle(pi.hProcess);
+    if (code != 0) {
+        arc::log_error("schtasks exited with code " + std::to_string(code));
+    }
     return code == 0;
 }
 

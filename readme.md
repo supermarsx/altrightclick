@@ -41,6 +41,8 @@ Notes:
 
 ## CLI Arguments
 - `--config <path>`: use a specific config file
+- `--log-level <error|warn|info|debug>`: override logging level (default: info)
+- `--log-file <path>`: append logs to a file in addition to console
 - `--install`: install a Windows service (auto-start)
 - `--uninstall`: uninstall the Windows service
 - `--start`: start the Windows service
@@ -68,8 +70,10 @@ Keys (case-insensitive):
 - `modifier=ALT|CTRL|SHIFT|WIN` (default: ALT)
 - `exit_key=ESC|F12` (default: ESC)
 - `ignore_injected=true|false` (default: true) — ignore externally injected mouse events
- - `click_time_ms=<uint>` (default: 250) — max press duration to translate click
- - `move_radius_px=<int>` (default: 6) — max pointer movement radius to still translate as click
+- `click_time_ms=<uint>` (default: 250) — max press duration to translate click
+- `move_radius_px=<int>` (default: 6) — max pointer movement radius to still translate as click
+- `log_level=error|warn|info|debug` (default: info)
+- `log_file=<path>` (default: empty; console only)
 
 Example: see `config.example.ini:1`.
 

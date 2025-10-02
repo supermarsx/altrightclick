@@ -6,6 +6,7 @@
 
 #include "arc/hook.h"
 #include "arc/app.h"
+#include "arc/log.h"
 
 namespace {
 
@@ -44,12 +45,15 @@ void WINAPI SvcMain(DWORD, LPTSTR *) {
     g_SvcStatus.dwServiceSpecificExitCode = 0;
 
     g_SvcStatusHandle = RegisterServiceCtrlHandlerW(L"AltRightClickService", SvcCtrlHandler);
-    if (!g_SvcStatusHandle)
+    if (!g_SvcStatusHandle) {
+        arc::log_error("RegisterServiceCtrlHandlerW failed: " + arc::last_error_message(GetLastError()));
         return;
+    }
 
     ReportSvcStatus(SERVICE_START_PENDING, NO_ERROR, 3000);
 
     if (!arc::install_mouse_hook()) {
+        arc::log_error("Service: install_mouse_hook failed");
         ReportSvcStatus(SERVICE_STOPPED, ERROR_SERVICE_SPECIFIC_ERROR, 1);
         return;
     }
@@ -77,14 +81,17 @@ namespace arc {
 bool service_install(const std::wstring &name, const std::wstring &display_name,
                      const std::wstring &bin_path_with_args) {
     SC_HANDLE scm = OpenSCManagerW(nullptr, nullptr, SC_MANAGER_CREATE_SERVICE);
-    if (!scm)
+    if (!scm) {
+        arc::log_error("OpenSCManagerW failed: " + arc::last_error_message(GetLastError()));
         return false;
+    }
 
     SC_HANDLE svc = CreateServiceW(scm, name.c_str(), display_name.c_str(), SERVICE_ALL_ACCESS,
                                    SERVICE_WIN32_OWN_PROCESS, SERVICE_AUTO_START, SERVICE_ERROR_NORMAL,
                                    bin_path_with_args.c_str(), nullptr, nullptr, nullptr, nullptr, nullptr);
 
     if (!svc) {
+        arc::log_error("CreateServiceW failed: " + arc::last_error_message(GetLastError()));
         CloseServiceHandle(scm);
         return false;
     }
@@ -95,10 +102,13 @@ bool service_install(const std::wstring &name, const std::wstring &display_name,
 
 bool service_uninstall(const std::wstring &name) {
     SC_HANDLE scm = OpenSCManagerW(nullptr, nullptr, SC_MANAGER_CONNECT);
-    if (!scm)
+    if (!scm) {
+        arc::log_error("OpenSCManagerW failed: " + arc::last_error_message(GetLastError()));
         return false;
+    }
     SC_HANDLE svc = OpenServiceW(scm, name.c_str(), DELETE);
     if (!svc) {
+        arc::log_error("OpenServiceW(DELETE) failed: " + arc::last_error_message(GetLastError()));
         CloseServiceHandle(scm);
         return false;
     }
@@ -110,10 +120,13 @@ bool service_uninstall(const std::wstring &name) {
 
 bool service_start(const std::wstring &name) {
     SC_HANDLE scm = OpenSCManagerW(nullptr, nullptr, SC_MANAGER_CONNECT);
-    if (!scm)
+    if (!scm) {
+        arc::log_error("OpenSCManagerW failed: " + arc::last_error_message(GetLastError()));
         return false;
+    }
     SC_HANDLE svc = OpenServiceW(scm, name.c_str(), SERVICE_START);
     if (!svc) {
+        arc::log_error("OpenServiceW(START) failed: " + arc::last_error_message(GetLastError()));
         CloseServiceHandle(scm);
         return false;
     }
@@ -125,10 +138,13 @@ bool service_start(const std::wstring &name) {
 
 bool service_stop(const std::wstring &name) {
     SC_HANDLE scm = OpenSCManagerW(nullptr, nullptr, SC_MANAGER_CONNECT);
-    if (!scm)
+    if (!scm) {
+        arc::log_error("OpenSCManagerW failed: " + arc::last_error_message(GetLastError()));
         return false;
+    }
     SC_HANDLE svc = OpenServiceW(scm, name.c_str(), SERVICE_STOP);
     if (!svc) {
+        arc::log_error("OpenServiceW(STOP) failed: " + arc::last_error_message(GetLastError()));
         CloseServiceHandle(scm);
         return false;
     }
@@ -163,6 +179,7 @@ int service_run(const std::wstring &name) {
     SERVICE_TABLE_ENTRYW dispatchTable[] = {{const_cast<LPWSTR>(name.c_str()), (LPSERVICE_MAIN_FUNCTIONW)SvcMain},
                                             {nullptr, nullptr}};
     if (!StartServiceCtrlDispatcherW(dispatchTable)) {
+        arc::log_error("StartServiceCtrlDispatcherW failed: " + arc::last_error_message(GetLastError()));
         return 1;
     }
     return 0;

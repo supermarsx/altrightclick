@@ -10,6 +10,8 @@
 #include <sstream>
 #include <string>
 
+#include "arc/log.h"
+
 namespace arc {
 
 static std::string to_lower(std::string s) {
@@ -87,6 +89,10 @@ Config load_config(const std::string &path) {
                     cfg.move_radius_px = v;
             } catch (...) {
             }
+        } else if (key == "log_level") {
+            cfg.log_level = vall;
+        } else if (key == "log_file") {
+            cfg.log_file = val;  // keep original as path
         }
     }
     return cfg;
@@ -123,6 +129,8 @@ std::string default_config_path() {
         if (bytes > 0)
             WideCharToMultiByte(CP_UTF8, 0, wpath.c_str(), -1, out.data(), bytes, nullptr, nullptr);
         return out;
+    } else {
+        arc::log_warn("SHGetKnownFolderPath failed; using local config path");
     }
     return local;  // fallback
 }
@@ -147,6 +155,8 @@ bool save_config(const std::string &path, const Config &cfg) {
     out << "ignore_injected=" << (cfg.ignore_injected ? "true" : "false") << "\n";
     out << "click_time_ms=" << cfg.click_time_ms << "\n";
     out << "move_radius_px=" << cfg.move_radius_px << "\n";
+    out << "log_level=" << cfg.log_level << "\n";
+    if (!cfg.log_file.empty()) out << "log_file=" << cfg.log_file << "\n";
     out.flush();
     return out.good();
 }

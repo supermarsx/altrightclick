@@ -16,6 +16,7 @@ set(SRC
     src/service.cpp
     src/task.cpp
     src/singleton.cpp
+    src/log.cpp
 )
 
 add_executable(altrightclick ${SRC})
