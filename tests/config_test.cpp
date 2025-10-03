@@ -95,7 +95,18 @@ int main() {
         std::remove(out.c_str());
     }
 
+    // default_config_path prefers exe_dir\\config.ini when present
+    {
+        std::string exe_dir_cfg = arc::default_config_path();
+        // Ensure file exists at exe dir by writing to resolved path
+        std::ofstream f(exe_dir_cfg, std::ios::app);
+        f << "# temp\n";
+        f.close();
+        std::string pick = arc::default_config_path();
+        expect(pick == exe_dir_cfg, "default_config_path prefers exe dir when present");
+        std::remove(exe_dir_cfg.c_str());
+    }
+
     std::printf("[OK] config tests passed\n");
     return 0;
 }
-

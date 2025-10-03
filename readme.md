@@ -3,6 +3,7 @@
 [![CI](https://github.com/supermarsx/altrightclick/actions/workflows/ci.yml/badge.svg)](https://github.com/supermarsx/altrightclick/actions/workflows/ci.yml)
 [![Rolling Release](https://github.com/supermarsx/altrightclick/actions/workflows/release.yml/badge.svg)](https://github.com/supermarsx/altrightclick/actions/workflows/release.yml)
 [![Scoop Update](https://github.com/supermarsx/altrightclick/actions/workflows/scoop-update.yml/badge.svg)](https://github.com/supermarsx/altrightclick/actions/workflows/scoop-update.yml)
+[![Coverage](badges/coverage.svg)](badges/coverage.svg)
 [![Downloads](https://img.shields.io/github/downloads/supermarsx/altrightclick/total.svg)](https://github.com/supermarsx/altrightclick/releases)
 [![Stars](https://img.shields.io/github/stars/supermarsx/altrightclick.svg?style=social)](https://github.com/supermarsx/altrightclick/stargazers)
 [![Watchers](https://img.shields.io/github/watchers/supermarsx/altrightclick.svg?style=social)](https://github.com/supermarsx/altrightclick/watchers)
