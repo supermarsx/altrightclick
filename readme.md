@@ -1,6 +1,10 @@
 # altrightclick
 
-[![CI](https://github.com/supermarsx/altrightclick/actions/workflows/ci.yml/badge.svg)](https://github.com/supermarsx/altrightclick/actions/workflows/ci.yml)
+[![Format](https://github.com/supermarsx/altrightclick/actions/workflows/format.yml/badge.svg)](https://github.com/supermarsx/altrightclick/actions/workflows/format.yml)
+[![Auto Format](https://github.com/supermarsx/altrightclick/actions/workflows/auto-format.yml/badge.svg)](https://github.com/supermarsx/altrightclick/actions/workflows/auto-format.yml)
+[![Lint](https://github.com/supermarsx/altrightclick/actions/workflows/lint.yml/badge.svg)](https://github.com/supermarsx/altrightclick/actions/workflows/lint.yml)
+[![Test](https://github.com/supermarsx/altrightclick/actions/workflows/test.yml/badge.svg)](https://github.com/supermarsx/altrightclick/actions/workflows/test.yml)
+[![Build](https://github.com/supermarsx/altrightclick/actions/workflows/build.yml/badge.svg)](https://github.com/supermarsx/altrightclick/actions/workflows/build.yml)
 [![Rolling Release](https://github.com/supermarsx/altrightclick/actions/workflows/release.yml/badge.svg)](https://github.com/supermarsx/altrightclick/actions/workflows/release.yml)
 [![Scoop Update](https://github.com/supermarsx/altrightclick/actions/workflows/scoop-update.yml/badge.svg)](https://github.com/supermarsx/altrightclick/actions/workflows/scoop-update.yml)
 [![Coverage](badges/coverage.svg)](badges/coverage.svg)

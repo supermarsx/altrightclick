@@ -1,0 +1,30 @@
+name: Lint
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install cpplint
+        run: |
+          python3 -m pip install --upgrade pip
+          pip3 install cpplint
+
+      - name: Run cpplint
+        run: |
+          files=$(git ls-files 'src/*.cpp' 'include/**/*.h' 'tests/*.cpp' 2>/dev/null || true)
+          if [ -n "$files" ]; then
+            cpplint --filter=-legal/copyright $files
+          fi
+

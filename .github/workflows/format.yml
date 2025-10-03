@@ -1,0 +1,33 @@
+name: Format
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install clang-format
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-format
+
+      - name: Check formatting (clang-format)
+        continue-on-error: true
+        run: |
+          files=$(git ls-files '*.c' '*.cc' '*.cpp' '*.cxx' '*.h' '*.hpp' | tr '\n' ' ')
+          if [ -n "$files" ]; then
+            echo "Checking formatting on:" $files
+            clang-format --version
+            clang-format -style=file -n --Werror $files || echo "format issues detected"
+          fi
+

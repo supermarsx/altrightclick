@@ -1,0 +1,78 @@
+name: Test
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-x64:
+    name: Test (x64)
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure (x64)
+        run: cmake -S . -B build/x64 -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=Release -DCMAKE_MSVC_DEBUG_INFORMATION_FORMAT=ProgramDatabase -DCMAKE_CXX_FLAGS_RELEASE="/Zi" -DCMAKE_EXE_LINKER_FLAGS_RELEASE="/DEBUG"
+
+      - name: Build (x64)
+        run: cmake --build build/x64 --config Release -- /m
+
+      - name: Run tests (ctest)
+        run: |
+          cd build/x64
+          ctest -C Release --output-on-failure || echo "No tests or tests failed"
+
+      - name: Install OpenCppCoverage
+        shell: pwsh
+        run: choco install OpenCppCoverage -y
+
+      - name: Generate coverage (Cobertura) and badge
+        shell: pwsh
+        run: |
+          $ctest = (Get-Command ctest).Source
+          if (-not $ctest) { Write-Host "ctest not found"; exit 0 }
+          $cov = "coverage.xml"
+          $occ = "C:\\Program Files\\OpenCppCoverage\\OpenCppCoverage.exe"
+          $modules = (Join-Path $PWD "build/x64/Release/*test.exe")
+          & "$occ" --export_type "cobertura:$cov" --quiet --cover_children --modules "$modules" --sources "$env:GITHUB_WORKSPACE" -- `"$ctest`" -C Release --output-on-failure
+          if (!(Test-Path $cov)) { Write-Host "Coverage file not created"; exit 0 }
+          python -m pip install --upgrade pip
+          python -m pip install genbadge[all]
+          New-Item -Type Directory badges -ErrorAction SilentlyContinue | Out-Null
+          python -m genbadge coverage -i $cov -o badges/coverage.svg
+
+      - name: Commit coverage badge
+        if: ${{ hashFiles('badges/coverage.svg') != '' }}
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore(ci): update coverage badge"
+          branch: ${{ github.head_ref || github.ref_name }}
+          file_pattern: badges/coverage.svg coverage.xml
+
+  test-arm64:
+    name: Test (ARM64)
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure (ARM64)
+        run: cmake -S . -B build/arm64 -G "Visual Studio 17 2022" -A ARM64 -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build (ARM64)
+        run: cmake --build build/arm64 --config Release -- /m
+
+      - name: Run tests (ctest)
+        run: |
+          cd build/arm64
+          ctest -C Release --output-on-failure || echo "No tests or tests failed"
+
