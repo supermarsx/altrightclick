@@ -65,3 +65,18 @@ install(DIRECTORY include/ DESTINATION include)
 
 message(STATUS "Generator: ${CMAKE_GENERATOR}")
 message(STATUS "Platform: ${CMAKE_GENERATOR_PLATFORM}")
+
+# -----------------------------
+# Tests
+# -----------------------------
+include(CTest)
+if (BUILD_TESTING)
+  add_executable(config_test tests/config_test.cpp)
+  target_include_directories(config_test PRIVATE include src ${VERSION_HEADER_DIR})
+  if (MSVC)
+    target_compile_definitions(config_test PRIVATE UNICODE _UNICODE NOMINMAX WIN32_LEAN_AND_MEAN)
+    target_compile_options(config_test PRIVATE /W4 /permissive-)
+  endif()
+  target_link_libraries(config_test PRIVATE user32 shell32 advapi32 ole32)
+  add_test(NAME config_test COMMAND config_test)
+endif()
