@@ -39,17 +39,16 @@ int main() {
 
     // Parse a custom config
     {
-        const char *cfg =
-            "enabled=false\n"
-            "show_tray=false\n"
-            "modifier=ALT+CTRL\n"
-            "exit_key=F12\n"
-            "ignore_injected=false\n"
-            "click_time_ms=333\n"
-            "move_radius_px=9\n"
-            "trigger=X2\n"
-            "log_level=debug\n"
-            "watch_config=true\n";
+        const char *cfg = "enabled=false\n"
+                          "show_tray=false\n"
+                          "modifier=ALT+CTRL\n"
+                          "exit_key=F12\n"
+                          "ignore_injected=false\n"
+                          "click_time_ms=333\n"
+                          "move_radius_px=9\n"
+                          "trigger=X2\n"
+                          "log_level=debug\n"
+                          "watch_config=true\n";
         std::string path = write_temp_file("config_test.ini", cfg);
         Config c = arc::load_config(path);
         expect(c.enabled == false, "enabled parsed false");
