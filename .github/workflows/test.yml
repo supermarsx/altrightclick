@@ -46,7 +46,9 @@ jobs:
       - name: Build (ARM64)
         run: cmake --build build/arm64 --config Release -- /m
 
-      - name: Run tests (ctest)
+      - name: Skip tests on ARM64
         run: |
+          echo "Skipping ARM64 test execution on x64 runner (cannot run ARM64 binaries)."
+          echo "Build completed; test discovery only:"
           cd build/arm64
-          ctest -C Release --output-on-failure || echo "No tests or tests failed"
+          ctest -N || echo "No tests discovered"
