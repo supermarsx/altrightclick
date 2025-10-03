@@ -18,6 +18,7 @@ static DWORD g_trayThreadId = 0;
 
 enum MenuId : UINT {
     kMenuExit = 1,
+    kMenuToggleEnabled = 50,
     kMenuClickTimeInc = 100,
     kMenuClickTimeDec = 101,
     kMenuMoveRadiusInc = 102,
@@ -29,6 +30,10 @@ enum MenuId : UINT {
 
 HMENU create_tray_menu(const arc::TrayContext* ctx) {
     HMENU menu = CreatePopupMenu();
+    std::wstring en = L"Enabled: ";
+    en += (ctx && ctx->cfg && ctx->cfg->enabled) ? L"ON" : L"OFF";
+    AppendMenuW(menu, MF_STRING, kMenuToggleEnabled, en.c_str());
+    AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
     AppendMenuW(menu, MF_STRING, kMenuClickTimeInc, L"Click Time +10 ms");
     AppendMenuW(menu, MF_STRING, kMenuClickTimeDec, L"Click Time -10 ms");
     AppendMenuW(menu, MF_STRING, kMenuMoveRadiusInc, L"Move Radius +1 px");
@@ -71,6 +76,11 @@ LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
             DestroyMenu(menu);
             if (ctx && ctx->cfg) {
                 switch (cmd) {
+                case kMenuToggleEnabled:
+                    ctx->cfg->enabled = !ctx->cfg->enabled;
+                    arc::apply_hook_config(*ctx->cfg);
+                    arc::tray_notify(L"altrightclick", ctx->cfg->enabled ? L"Enabled" : L"Disabled");
+                    break;
                 case kMenuClickTimeInc:
                     ctx->cfg->click_time_ms =
                         static_cast<unsigned int>(std::min<int>(ctx->cfg->click_time_ms + 10, 5000));

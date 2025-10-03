@@ -5,13 +5,18 @@
 #include <atomic>
 #include <thread>
 #include <vector>
+#include <future>
+#include <utility>
 
 #include "arc/config.h"
 #include "arc/log.h"
 
 namespace {
-HHOOK g_mouseHook = nullptr;
-unsigned int g_modifier_vk = VK_MENU;         // default ALT
+struct HookState {
+    std::atomic<HHOOK> mouse_hook{nullptr};
+    std::atomic<unsigned int> modifier_vk{VK_MENU};  // default ALT
+} g_state;
+std::atomic<bool> g_enabled{true};
 bool g_ignore_injected = true;
 const ULONG_PTR kArcInjectedTag = 0xA17C1C00;  // tag our injected events
 std::atomic<bool> g_hookRunning{false};
@@ -38,15 +43,18 @@ namespace arc {
 
 LRESULT CALLBACK LowLevelMouseProc(int nCode, WPARAM wParam, LPARAM lParam) {
     if (nCode == HC_ACTION) {
+        if (!g_enabled.load()) {
+            return CallNextHookEx(g_state.mouse_hook.load(), nCode, wParam, lParam);
+        }
         PMSLLHOOKSTRUCT pMouse = reinterpret_cast<PMSLLHOOKSTRUCT>(lParam);
         if (pMouse && pMouse->dwExtraInfo == kArcInjectedTag) {
             // Ignore events we injected ourselves
-            return CallNextHookEx(g_mouseHook, nCode, wParam, lParam);
+            return CallNextHookEx(g_state.mouse_hook.load(), nCode, wParam, lParam);
         }
 
         // Ignore or treat cautiously any injected events from other processes or lower IL
         if (g_ignore_injected && pMouse && (pMouse->flags & (LLMHF_INJECTED | LLMHF_LOWER_IL_INJECTED))) {
-            return CallNextHookEx(g_mouseHook, nCode, wParam, lParam);
+            return CallNextHookEx(g_state.mouse_hook.load(), nCode, wParam, lParam);
         }
 
         auto all_mods_down = []() -> bool {
@@ -56,7 +64,8 @@ LRESULT CALLBACK LowLevelMouseProc(int nCode, WPARAM wParam, LPARAM lParam) {
                 }
                 return true;
             }
-            return g_modifier_vk ? (GetAsyncKeyState(static_cast<int>(g_modifier_vk)) & 0x8000) != 0 : true;
+            unsigned int mvk = g_state.modifier_vk.load();
+            return mvk ? (GetAsyncKeyState(static_cast<int>(mvk)) & 0x8000) != 0 : true;
         };
 
         auto is_down = [&](WPARAM wp, const MSLLHOOKSTRUCT* m) -> bool {
@@ -142,25 +151,27 @@ LRESULT CALLBACK LowLevelMouseProc(int nCode, WPARAM wParam, LPARAM lParam) {
         }
     }
 
-    return CallNextHookEx(g_mouseHook, nCode, wParam, lParam);
+    return CallNextHookEx(g_state.mouse_hook.load(), nCode, wParam, lParam);
 }
 
 bool install_mouse_hook() {
     HINSTANCE hInst = GetModuleHandleW(nullptr);
-    g_mouseHook = SetWindowsHookEx(WH_MOUSE_LL, LowLevelMouseProc, hInst, 0);
-    return g_mouseHook != nullptr;
+    HHOOK h = SetWindowsHookEx(WH_MOUSE_LL, LowLevelMouseProc, hInst, 0);
+    g_state.mouse_hook.store(h);
+    return h != nullptr;
 }
 
 void remove_mouse_hook() {
-    if (g_mouseHook) {
-        UnhookWindowsHookEx(g_mouseHook);
-        g_mouseHook = nullptr;
+    HHOOK h = g_state.mouse_hook.exchange(nullptr);
+    if (h) {
+        UnhookWindowsHookEx(h);
     }
 }
 
 void apply_hook_config(const arc::Config &cfg) {
-    g_modifier_vk = cfg.modifier_vk;
+    g_state.modifier_vk.store(cfg.modifier_vk);
     g_modifier_combo = cfg.modifier_combo_vks;
+    g_enabled.store(cfg.enabled);
     g_ignore_injected = cfg.ignore_injected;
     g_clickTimeMs = cfg.click_time_ms;
     g_moveRadius = cfg.move_radius_px;
@@ -170,9 +181,13 @@ void apply_hook_config(const arc::Config &cfg) {
 bool start_hook_worker() {
     if (g_hookRunning.load()) return true;
     g_hookRunning.store(true);
-    g_hookThread = std::thread([]() {
+    std::promise<bool> ready;
+    auto fut = ready.get_future();
+    g_hookThread = std::thread([p = std::move(ready)]() mutable {
         g_hookThreadId = GetCurrentThreadId();
-        if (!install_mouse_hook()) {
+        bool ok = install_mouse_hook();
+        p.set_value(ok);
+        if (!ok) {
             arc::log_error("Hook worker: failed to install mouse hook");
             g_hookRunning.store(false);
             return;
@@ -185,7 +200,11 @@ bool start_hook_worker() {
         remove_mouse_hook();
         g_hookRunning.store(false);
     });
-    return true;
+    bool ok = fut.get();
+    if (!ok) {
+        if (g_hookThread.joinable()) g_hookThread.join();
+    }
+    return ok;
 }
 
 void stop_hook_worker() {
