@@ -8,12 +8,13 @@
 
 namespace {
 
-std::wstring quote(const std::wstring& s) {
-    if (s.find(L' ') != std::wstring::npos) return L"\"" + s + L"\"";
+std::wstring quote(const std::wstring &s) {
+    if (s.find(L' ') != std::wstring::npos)
+        return L"\"" + s + L"\"";
     return s;
 }
 
-bool run_schtasks(const std::wstring& args) {
+bool run_schtasks(const std::wstring &args) {
     std::wstring cmd = L"schtasks.exe " + args;
     STARTUPINFOW si{};
     si.cb = sizeof(si);
@@ -39,23 +40,20 @@ bool run_schtasks(const std::wstring& args) {
 
 namespace arc {
 
-bool task_install(const std::wstring& name, const std::wstring& exe_with_args, bool highest) {
+bool task_install(const std::wstring &name, const std::wstring &exe_with_args, bool highest) {
     std::wstring rl = highest ? L" /RL HIGHEST" : L"";
-    std::wstring cmd = L"/Create /TN " + quote(name) + L" /TR " + quote(exe_with_args) +
-                       L" /SC ONLOGON /F /IT" + rl;
+    std::wstring cmd = L"/Create /TN " + quote(name) + L" /TR " + quote(exe_with_args) + L" /SC ONLOGON /F /IT" + rl;
     return run_schtasks(cmd);
 }
 
-bool task_uninstall(const std::wstring& name) {
-    return run_schtasks(L"/Delete /TN " + quote(name) + L" /F");
-}
+bool task_uninstall(const std::wstring &name) { return run_schtasks(L"/Delete /TN " + quote(name) + L" /F"); }
 
-bool task_exists(const std::wstring& name) {
+bool task_exists(const std::wstring &name) {
     // schtasks returns non-zero if not found
     return run_schtasks(L"/Query /TN " + quote(name));
 }
 
-bool task_update(const std::wstring& name, const std::wstring& exe_with_args, bool highest) {
+bool task_update(const std::wstring &name, const std::wstring &exe_with_args, bool highest) {
     // Recreate task with new action/settings
     (void)task_uninstall(name);
     return task_install(name, exe_with_args, highest);

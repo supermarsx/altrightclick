@@ -54,7 +54,8 @@ static void parse_modifier_combo(const std::string &val, std::vector<unsigned in
             std::string tok = to_lower(trim(tmp));
             if (!tok.empty()) {
                 unsigned int vk = vk_from_str(tok);
-                if (vk) out->push_back(vk);
+                if (vk)
+                    out->push_back(vk);
             }
             tmp.clear();
         } else {
@@ -65,9 +66,12 @@ static void parse_modifier_combo(const std::string &val, std::vector<unsigned in
 
 static Config::Trigger trigger_from_str(const std::string &name) {
     std::string n = to_lower(name);
-    if (n == "middle" || n == "m" || n == "mbutton") return Config::Trigger::Middle;
-    if (n == "x1" || n == "xbutton1") return Config::Trigger::X1;
-    if (n == "x2" || n == "xbutton2") return Config::Trigger::X2;
+    if (n == "middle" || n == "m" || n == "mbutton")
+        return Config::Trigger::Middle;
+    if (n == "x1" || n == "xbutton1")
+        return Config::Trigger::X1;
+    if (n == "x2" || n == "xbutton2")
+        return Config::Trigger::X2;
     return Config::Trigger::Left;
 }
 
@@ -101,7 +105,8 @@ Config load_config(const std::string &path) {
                 cfg.modifier_vk = mods.front();
             } else {
                 unsigned int vk = vk_from_str(val);
-                if (vk) cfg.modifier_vk = vk;
+                if (vk)
+                    cfg.modifier_vk = vk;
             }
         } else if (key == "trigger") {
             cfg.trigger = trigger_from_str(val);
@@ -177,7 +182,8 @@ bool save_config(const std::string &path, const Config &cfg) {
     // Ensure parent directory exists
     int n = MultiByteToWideChar(CP_UTF8, 0, path.c_str(), -1, nullptr, 0);
     std::wstring wp(n ? n - 1 : 0, L'\0');
-    if (n) MultiByteToWideChar(CP_UTF8, 0, path.c_str(), -1, wp.data(), n);
+    if (n)
+        MultiByteToWideChar(CP_UTF8, 0, path.c_str(), -1, wp.data(), n);
     size_t pos = wp.find_last_of(L"\\/");
     if (pos != std::wstring::npos) {
         std::wstring dir = wp.substr(0, pos);
@@ -195,25 +201,34 @@ bool save_config(const std::string &path, const Config &cfg) {
     out << "show_tray=" << (cfg.show_tray ? "true" : "false") << "\n\n";
     // Map modifier back to string
     std::string mod = "ALT";
-    if (cfg.modifier_vk == VK_CONTROL) mod = "CTRL";
-    else if (cfg.modifier_vk == VK_SHIFT) mod = "SHIFT";
-    else if (cfg.modifier_vk == VK_LWIN) mod = "WIN";
+    if (cfg.modifier_vk == VK_CONTROL)
+        mod = "CTRL";
+    else if (cfg.modifier_vk == VK_SHIFT)
+        mod = "SHIFT";
+    else if (cfg.modifier_vk == VK_LWIN)
+        mod = "WIN";
     out << "# Modifier key for translating left-click to right-click (ALT|CTRL|SHIFT|WIN)\n";
     out << "# Multiple modifiers allowed; e.g., ALT+CTRL or ALT,CTRL\n";
     // Recompose from combo if present
     if (!cfg.modifier_combo_vks.empty()) {
         auto to_name = [](unsigned int vk) {
-            if (vk == VK_MENU) return "ALT";
-            if (vk == VK_CONTROL) return "CTRL";
-            if (vk == VK_SHIFT) return "SHIFT";
-            if (vk == VK_LWIN) return "WIN";
+            if (vk == VK_MENU)
+                return "ALT";
+            if (vk == VK_CONTROL)
+                return "CTRL";
+            if (vk == VK_SHIFT)
+                return "SHIFT";
+            if (vk == VK_LWIN)
+                return "WIN";
             return "";
         };
         std::string combo;
         for (size_t i = 0; i < cfg.modifier_combo_vks.size(); ++i) {
             std::string t = to_name(cfg.modifier_combo_vks[i]);
-            if (t.empty()) continue;
-            if (!combo.empty()) combo += "+";
+            if (t.empty())
+                continue;
+            if (!combo.empty())
+                combo += "+";
             combo += t;
         }
         if (!combo.empty()) {
@@ -235,10 +250,13 @@ bool save_config(const std::string &path, const Config &cfg) {
     out << "# Max pointer movement radius in pixels to still translate as click (0-100)\n";
     out << "move_radius_px=" << cfg.move_radius_px << "\n\n";
     out << "# Source button to translate (LEFT|MIDDLE|X1|X2)\n";
-    const char* trig = "LEFT";
-    if (cfg.trigger == Config::Trigger::Middle) trig = "MIDDLE";
-    else if (cfg.trigger == Config::Trigger::X1) trig = "X1";
-    else if (cfg.trigger == Config::Trigger::X2) trig = "X2";
+    const char *trig = "LEFT";
+    if (cfg.trigger == Config::Trigger::Middle)
+        trig = "MIDDLE";
+    else if (cfg.trigger == Config::Trigger::X1)
+        trig = "X1";
+    else if (cfg.trigger == Config::Trigger::X2)
+        trig = "X2";
     out << "trigger=" << trig << "\n\n";
     out << "# Logging level: error|warn|info|debug\n";
     out << "log_level=" << cfg.log_level << "\n";

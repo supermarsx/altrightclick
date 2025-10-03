@@ -24,9 +24,14 @@ struct Config {
     int move_radius_px = 6;
     // Logging
     std::string log_level = "info";  // error|warn|info|debug
-    std::string log_file;             // empty for stdout/stderr only
+    std::string log_file;            // empty for stdout/stderr only
     // Trigger button for translation
-    enum class Trigger { Left, Middle, X1, X2 };
+    enum class Trigger {
+        Left,
+        Middle,
+        X1,
+        X2
+    };
     Trigger trigger = Trigger::Left;
     // Live reload
     bool watch_config = false;

@@ -40,8 +40,10 @@ static bool file_exists_w(const std::wstring &path) {
 
 static bool is_safe_arg_utf8(const std::string &s) {
     for (unsigned char c : s) {
-        if (c < 0x20) return false;  // control chars (CR, LF, TAB, etc.)
-        if (c == '"') return false; // disallow quotes to avoid breaking quoting
+        if (c < 0x20)
+            return false;  // control chars (CR, LF, TAB, etc.)
+        if (c == '"')
+            return false;  // disallow quotes to avoid breaking quoting
     }
     return true;
 }
@@ -53,14 +55,15 @@ static bool is_elevated() {
         DWORD ret = 0;
         BOOL ok = GetTokenInformation(token, TokenElevation, &elev, sizeof(elev), &ret);
         CloseHandle(token);
-        if (ok) return elev.TokenIsElevated != 0;
+        if (ok)
+            return elev.TokenIsElevated != 0;
     }
     // Fallback: check membership in Administrators
     BOOL isMember = FALSE;
     SID_IDENTIFIER_AUTHORITY NtAuthority = SECURITY_NT_AUTHORITY;
     PSID adminGroup = nullptr;
-    if (AllocateAndInitializeSid(&NtAuthority, 2, SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_ADMINS,
-                                 0, 0, 0, 0, 0, 0, &adminGroup)) {
+    if (AllocateAndInitializeSid(&NtAuthority, 2, SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_ADMINS, 0, 0, 0, 0, 0,
+                                 0, &adminGroup)) {
         CheckTokenMembership(nullptr, adminGroup, &isMember);
         FreeSid(adminGroup);
     }
@@ -148,7 +151,8 @@ int main(int argc, char **argv) {
     if (do_install || do_uninstall || do_start || do_stop || do_service_status) {
         if (!is_elevated()) {
             std::cerr << "Service commands require Administrator privileges.\n"
-                         "Please run the shell as Administrator and try again." << std::endl;
+                         "Please run the shell as Administrator and try again."
+                      << std::endl;
             return 1;
         }
         std::wstring exe = get_module_path();
@@ -225,10 +229,13 @@ int main(int argc, char **argv) {
         }
     }
     arc::Config cfg = arc::load_config(config_path);
-    if (!cli_log_level.empty()) cfg.log_level = cli_log_level;
-    if (!cli_log_file.empty()) cfg.log_file = cli_log_file;
+    if (!cli_log_level.empty())
+        cfg.log_level = cli_log_level;
+    if (!cli_log_file.empty())
+        cfg.log_file = cli_log_file;
     arc::log_set_level_by_name(cfg.log_level);
-    if (!cfg.log_file.empty()) arc::log_set_file(cfg.log_file);
+    if (!cfg.log_file.empty())
+        arc::log_set_file(cfg.log_file);
     arc::log_info(std::string("altrightclick ") + ARC_VERSION);
     arc::log_info(std::string("Using config: ") + config_path);
     arc::apply_hook_config(cfg);
@@ -253,7 +260,8 @@ int main(int argc, char **argv) {
     std::atomic<bool> watchStop{false};
     std::thread watchThread;
     auto start_watch = [&]() {
-        if (!cfg.watch_config) return;
+        if (!cfg.watch_config)
+            return;
         watchThread = std::thread([&]() {
             auto get_mtime = [](const std::wstring &p) -> ULONGLONG {
                 WIN32_FILE_ATTRIBUTE_DATA fad{};
@@ -273,10 +281,13 @@ int main(int argc, char **argv) {
                 if (cur != 0 && cur != last) {
                     last = cur;
                     arc::Config newCfg = arc::load_config(config_path);
-                    if (!cli_log_level.empty()) newCfg.log_level = cli_log_level;
-                    if (!cli_log_file.empty()) newCfg.log_file = cli_log_file;
+                    if (!cli_log_level.empty())
+                        newCfg.log_level = cli_log_level;
+                    if (!cli_log_file.empty())
+                        newCfg.log_file = cli_log_file;
                     arc::log_set_level_by_name(newCfg.log_level);
-                    if (!newCfg.log_file.empty()) arc::log_set_file(newCfg.log_file);
+                    if (!newCfg.log_file.empty())
+                        arc::log_set_file(newCfg.log_file);
                     arc::apply_hook_config(newCfg);
                     *trayCtx.cfg = newCfg;
                     arc::tray_notify(L"altrightclick", L"Configuration reloaded");
@@ -290,12 +301,14 @@ int main(int argc, char **argv) {
     // Poll for exit key
     arc::log_info("Alt + Left Click => Right Click. Press exit key to quit.");
     while (true) {
-        if (cfg.exit_vk && (GetAsyncKeyState(static_cast<int>(cfg.exit_vk)) & 0x8000)) break;
+        if (cfg.exit_vk && (GetAsyncKeyState(static_cast<int>(cfg.exit_vk)) & 0x8000))
+            break;
         Sleep(50);
     }
 
     watchStop.store(true);
-    if (watchThread.joinable()) watchThread.join();
+    if (watchThread.joinable())
+        watchThread.join();
     arc::stop_tray_worker();
     arc::stop_hook_worker();
     arc::log_stop_async();

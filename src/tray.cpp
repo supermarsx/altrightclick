@@ -28,7 +28,7 @@ enum MenuId : UINT {
     kMenuOpenConfigFolder = 106,
 };
 
-HMENU create_tray_menu(const arc::TrayContext* ctx) {
+HMENU create_tray_menu(const arc::TrayContext *ctx) {
     HMENU menu = CreatePopupMenu();
     std::wstring en = L"Enabled: ";
     en += (ctx && ctx->cfg && ctx->cfg->enabled) ? L"ON" : L"OFF";
@@ -59,7 +59,8 @@ static std::wstring to_w(const std::string &s) {
 
 static std::wstring dir_of(const std::wstring &path) {
     size_t pos = path.find_last_of(L"\\/");
-    if (pos == std::wstring::npos) return path;
+    if (pos == std::wstring::npos)
+        return path;
     return path.substr(0, pos);
 }
 
@@ -70,7 +71,7 @@ LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
             POINT pt;
             GetCursorPos(&pt);
             SetForegroundWindow(hwnd);
-            auto* ctx = reinterpret_cast<arc::TrayContext*>(GetWindowLongPtr(hwnd, GWLP_USERDATA));
+            auto *ctx = reinterpret_cast<arc::TrayContext *>(GetWindowLongPtr(hwnd, GWLP_USERDATA));
             HMENU menu = create_tray_menu(ctx);
             UINT cmd = TrackPopupMenu(menu, TPM_RETURNCMD | TPM_NONOTIFY, pt.x, pt.y, 0, hwnd, nullptr);
             DestroyMenu(menu);
@@ -87,8 +88,8 @@ LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
                     arc::apply_hook_config(*ctx->cfg);
                     break;
                 case kMenuClickTimeDec:
-                    ctx->cfg->click_time_ms = static_cast<unsigned int>(
-                        std::max<int>(static_cast<int>(ctx->cfg->click_time_ms) - 10, 10));
+                    ctx->cfg->click_time_ms =
+                        static_cast<unsigned int>(std::max<int>(static_cast<int>(ctx->cfg->click_time_ms) - 10, 10));
                     arc::apply_hook_config(*ctx->cfg);
                     break;
                 case kMenuMoveRadiusInc:
@@ -109,9 +110,8 @@ LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
                     }
                     break;
                 case kMenuOpenConfigFolder: {
-                    std::string p = (ctx->config_path && !ctx->config_path->empty())
-                                        ? *ctx->config_path
-                                        : arc::default_config_path();
+                    std::string p = (ctx->config_path && !ctx->config_path->empty()) ? *ctx->config_path
+                                                                                     : arc::default_config_path();
                     std::wstring wp = to_w(p);
                     std::wstring dir = dir_of(wp);
                     ShellExecuteW(nullptr, L"open", dir.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
@@ -140,7 +140,7 @@ LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
 
 namespace arc {
 
-HWND tray_init(HINSTANCE hInstance, const std::wstring &tooltip, arc::TrayContext* ctx) {
+HWND tray_init(HINSTANCE hInstance, const std::wstring &tooltip, arc::TrayContext *ctx) {
     const wchar_t *kClassName = L"AltRightClickTrayWindow";
     WNDCLASSEXW wc{sizeof(WNDCLASSEXW)};
     wc.lpfnWndProc = TrayWndProc;
@@ -188,8 +188,9 @@ void tray_cleanup(HWND hwnd) {
 
 namespace arc {
 
-bool start_tray_worker(const std::wstring &tooltip, TrayContext* ctx) {
-    if (g_trayThread.joinable()) return true;
+bool start_tray_worker(const std::wstring &tooltip, TrayContext *ctx) {
+    if (g_trayThread.joinable())
+        return true;
     g_trayThread = std::thread([tooltip, ctx]() {
         g_trayThreadId = GetCurrentThreadId();
         HINSTANCE hInst = GetModuleHandleW(nullptr);
@@ -210,12 +211,15 @@ bool start_tray_worker(const std::wstring &tooltip, TrayContext* ctx) {
 }
 
 void stop_tray_worker() {
-    if (g_trayThreadId) PostThreadMessage(g_trayThreadId, WM_QUIT, 0, 0);
-    if (g_trayThread.joinable()) g_trayThread.join();
+    if (g_trayThreadId)
+        PostThreadMessage(g_trayThreadId, WM_QUIT, 0, 0);
+    if (g_trayThread.joinable())
+        g_trayThread.join();
 }
 
-void tray_notify(const std::wstring& title, const std::wstring& message) {
-    if (!g_nid.hWnd) return;
+void tray_notify(const std::wstring &title, const std::wstring &message) {
+    if (!g_nid.hWnd)
+        return;
     NOTIFYICONDATAW nid = g_nid;
     nid.uFlags |= NIF_INFO;
     wcsncpy_s(nid.szInfoTitle, title.c_str(), _TRUNCATE);

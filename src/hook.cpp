@@ -22,7 +22,7 @@ const ULONG_PTR kArcInjectedTag = 0xA17C1C00;  // tag our injected events
 std::atomic<bool> g_hookRunning{false};
 DWORD g_hookThreadId = 0;
 std::thread g_hookThread;
-std::vector<unsigned int> g_modifier_combo;   // support modifier combos
+std::vector<unsigned int> g_modifier_combo;  // support modifier combos
 arc::Config::Trigger g_trigger = arc::Config::Trigger::Left;
 
 // Click/drag discrimination
@@ -60,7 +60,8 @@ LRESULT CALLBACK LowLevelMouseProc(int nCode, WPARAM wParam, LPARAM lParam) {
         auto all_mods_down = []() -> bool {
             if (!g_modifier_combo.empty()) {
                 for (auto vk : g_modifier_combo) {
-                    if (!(GetAsyncKeyState(static_cast<int>(vk)) & 0x8000)) return false;
+                    if (!(GetAsyncKeyState(static_cast<int>(vk)) & 0x8000))
+                        return false;
                 }
                 return true;
             }
@@ -68,11 +69,13 @@ LRESULT CALLBACK LowLevelMouseProc(int nCode, WPARAM wParam, LPARAM lParam) {
             return mvk ? (GetAsyncKeyState(static_cast<int>(mvk)) & 0x8000) != 0 : true;
         };
 
-        auto is_down = [&](WPARAM wp, const MSLLHOOKSTRUCT* m) -> bool {
+        auto is_down = [&](WPARAM wp, const MSLLHOOKSTRUCT *m) -> bool {
             (void)m;
             switch (g_trigger) {
-            case arc::Config::Trigger::Left: return wp == WM_LBUTTONDOWN;
-            case arc::Config::Trigger::Middle: return wp == WM_MBUTTONDOWN;
+            case arc::Config::Trigger::Left:
+                return wp == WM_LBUTTONDOWN;
+            case arc::Config::Trigger::Middle:
+                return wp == WM_MBUTTONDOWN;
             case arc::Config::Trigger::X1:
             case arc::Config::Trigger::X2:
                 if (wp == WM_XBUTTONDOWN) {
@@ -84,11 +87,13 @@ LRESULT CALLBACK LowLevelMouseProc(int nCode, WPARAM wParam, LPARAM lParam) {
             }
             return false;
         };
-        auto is_up = [&](WPARAM wp, const MSLLHOOKSTRUCT* m) -> bool {
+        auto is_up = [&](WPARAM wp, const MSLLHOOKSTRUCT *m) -> bool {
             (void)m;
             switch (g_trigger) {
-            case arc::Config::Trigger::Left: return wp == WM_LBUTTONUP;
-            case arc::Config::Trigger::Middle: return wp == WM_MBUTTONUP;
+            case arc::Config::Trigger::Left:
+                return wp == WM_LBUTTONUP;
+            case arc::Config::Trigger::Middle:
+                return wp == WM_MBUTTONUP;
             case arc::Config::Trigger::X1:
             case arc::Config::Trigger::X2:
                 if (wp == WM_XBUTTONUP) {
@@ -179,7 +184,8 @@ void apply_hook_config(const arc::Config &cfg) {
 }
 
 bool start_hook_worker() {
-    if (g_hookRunning.load()) return true;
+    if (g_hookRunning.load())
+        return true;
     g_hookRunning.store(true);
     std::promise<bool> ready;
     auto fut = ready.get_future();
@@ -202,15 +208,18 @@ bool start_hook_worker() {
     });
     bool ok = fut.get();
     if (!ok) {
-        if (g_hookThread.joinable()) g_hookThread.join();
+        if (g_hookThread.joinable())
+            g_hookThread.join();
     }
     return ok;
 }
 
 void stop_hook_worker() {
     if (g_hookRunning.load()) {
-        if (g_hookThreadId) PostThreadMessage(g_hookThreadId, WM_QUIT, 0, 0);
-        if (g_hookThread.joinable()) g_hookThread.join();
+        if (g_hookThreadId)
+            PostThreadMessage(g_hookThreadId, WM_QUIT, 0, 0);
+        if (g_hookThread.joinable())
+            g_hookThread.join();
         g_hookThreadId = 0;
         g_hookRunning.store(false);
     }
