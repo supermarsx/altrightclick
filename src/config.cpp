@@ -234,6 +234,12 @@ bool save_config(const std::string &path, const Config &cfg) {
     out << "click_time_ms=" << cfg.click_time_ms << "\n\n";
     out << "# Max pointer movement radius in pixels to still translate as click (0-100)\n";
     out << "move_radius_px=" << cfg.move_radius_px << "\n\n";
+    out << "# Source button to translate (LEFT|MIDDLE|X1|X2)\n";
+    const char* trig = "LEFT";
+    if (cfg.trigger == Config::Trigger::Middle) trig = "MIDDLE";
+    else if (cfg.trigger == Config::Trigger::X1) trig = "X1";
+    else if (cfg.trigger == Config::Trigger::X2) trig = "X2";
+    out << "trigger=" << trig << "\n\n";
     out << "# Logging level: error|warn|info|debug\n";
     out << "log_level=" << cfg.log_level << "\n";
     if (!cfg.log_file.empty()) {
@@ -247,9 +253,3 @@ bool save_config(const std::string &path, const Config &cfg) {
 }
 
 }  // namespace arc
-    out << "# Source button to translate (LEFT|MIDDLE|X1|X2)\n";
-    const char* trig = "LEFT";
-    if (cfg.trigger == Config::Trigger::Middle) trig = "MIDDLE";
-    else if (cfg.trigger == Config::Trigger::X1) trig = "X1";
-    else if (cfg.trigger == Config::Trigger::X2) trig = "X2";
-    out << "trigger=" << trig << "\n\n";

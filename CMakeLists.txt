@@ -46,7 +46,7 @@ add_executable(altrightclick ${SRC} ${CMAKE_BINARY_DIR}/altrightclick.rc)
 target_include_directories(altrightclick PRIVATE include src ${VERSION_HEADER_DIR})
 
 if(MSVC)
-    target_compile_definitions(altrightclick PRIVATE UNICODE _UNICODE)
+    target_compile_definitions(altrightclick PRIVATE UNICODE _UNICODE NOMINMAX WIN32_LEAN_AND_MEAN)
     target_compile_options(altrightclick PRIVATE /W4 /permissive-)
 endif()
 

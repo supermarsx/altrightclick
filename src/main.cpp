@@ -3,8 +3,11 @@
 #include <windows.h>
 
 #include <iostream>
+#include <fstream>
 #include <string>
 #include <vector>
+#include <thread>
+#include <atomic>
 
 #include "arc/hook.h"
 #include "arc/app.h"
@@ -237,13 +240,13 @@ int main(int argc, char **argv) {
     }
 
     // Start hook + tray workers
-    if (!start_hook_worker()) {
+    if (!arc::start_hook_worker()) {
         arc::log_error("Failed to start hook worker");
         return 1;
     }
     arc::TrayContext trayCtx{&cfg, &config_path};
     if (cfg.show_tray) {
-        start_tray_worker(L"AltRightClick running (Alt+Left => Right)", &trayCtx);
+        arc::start_tray_worker(L"AltRightClick running (Alt+Left => Right)", &trayCtx);
     }
 
     // Optional live reload watcher
@@ -293,8 +296,8 @@ int main(int argc, char **argv) {
 
     watchStop.store(true);
     if (watchThread.joinable()) watchThread.join();
-    stop_tray_worker();
-    stop_hook_worker();
+    arc::stop_tray_worker();
+    arc::stop_hook_worker();
     arc::log_stop_async();
     return 0;
 }
