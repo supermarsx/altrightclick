@@ -7,7 +7,7 @@ altrightclick turns Alt + Left Click into a Right Click on Windows by installing
 [![Watchers](https://img.shields.io/github/watchers/supermarsx/altrightclick.svg?style=flat)](https://github.com/supermarsx/altrightclick/watchers)
 [![Forks](https://img.shields.io/github/forks/supermarsx/altrightclick.svg?style=flat)](https://github.com/supermarsx/altrightclick/network/members)
 [![Issues](https://img.shields.io/github/issues/supermarsx/altrightclick.svg)](https://github.com/supermarsx/altrightclick/issues)
-[![Coverage](badges/coverage.svg)](badges/coverage.svg)
+[![Coverage](https://raw.githubusercontent.com/supermarsx/altrightclick/main/badges/coverage.svg)](https://raw.githubusercontent.com/supermarsx/altrightclick/main/badges/coverage.svg)
 [![Downloads](https://img.shields.io/github/downloads/supermarsx/altrightclick/total.svg)](https://github.com/supermarsx/altrightclick/releases)
 [![License](https://img.shields.io/github/license/supermarsx/altrightclick.svg)](license.md)
 [![Built with](https://img.shields.io/badge/Built%20with-C%2B%2B17%20%7C%20CMake-blue)](#build-windows)
