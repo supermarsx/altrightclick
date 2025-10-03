@@ -1,0 +1,67 @@
+name: Coverage
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  coverage-x64:
+    name: Coverage (x64)
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure (x64)
+        run: cmake -S . -B build/x64 -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=Release -DCMAKE_MSVC_DEBUG_INFORMATION_FORMAT=ProgramDatabase -DCMAKE_CXX_FLAGS_RELEASE="/Zi" -DCMAKE_EXE_LINKER_FLAGS_RELEASE="/DEBUG"
+
+      - name: Build (x64)
+        run: cmake --build build/x64 --config Release -- /m
+
+      - name: Install OpenCppCoverage
+        shell: pwsh
+        run: choco install OpenCppCoverage -y
+
+      - name: Generate coverage (Cobertura) and badge
+        shell: pwsh
+        run: |
+          $ctest = (Get-Command ctest).Source
+          if (-not $ctest) { Write-Host "ctest not found"; exit 0 }
+          $cov = "coverage.xml"
+          $occ = "C:\\Program Files\\OpenCppCoverage\\OpenCppCoverage.exe"
+          $modules = (Join-Path $PWD "build/x64/Release/*test.exe")
+          & "$occ" --export_type "cobertura:$cov" --quiet --cover_children --modules "$modules" --sources "$env:GITHUB_WORKSPACE" -- `"$ctest`" -C Release --output-on-failure
+          if (!(Test-Path $cov)) { Write-Host "Coverage file not created"; exit 0 }
+          python -m pip install --upgrade pip
+          python -m pip install genbadge[all]
+          New-Item -Type Directory badges -ErrorAction SilentlyContinue | Out-Null
+          python -m genbadge coverage -i $cov -o badges/coverage.svg
+
+      - name: Upload coverage artifacts
+        if: ${{ hashFiles('coverage.xml') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-x64
+          path: |
+            coverage.xml
+            badges/coverage.svg
+
+      - name: Commit coverage badge and XML
+        if: ${{ hashFiles('badges/coverage.svg') != '' }}
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore(ci): update coverage badge and report"
+          branch: ${{ github.head_ref || github.ref_name }}
+          file_pattern: badges/coverage.svg coverage.xml
+
