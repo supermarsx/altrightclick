@@ -17,7 +17,6 @@ altrightclick turns Alt + Left Click into a Right Click on Windows by installing
 CI Status
 
 [![Format](https://github.com/supermarsx/altrightclick/actions/workflows/format.yml/badge.svg)](https://github.com/supermarsx/altrightclick/actions/workflows/format.yml)
-[![Auto Format](https://github.com/supermarsx/altrightclick/actions/workflows/auto-format.yml/badge.svg)](https://github.com/supermarsx/altrightclick/actions/workflows/auto-format.yml)
 [![Lint](https://github.com/supermarsx/altrightclick/actions/workflows/lint.yml/badge.svg)](https://github.com/supermarsx/altrightclick/actions/workflows/lint.yml)
 [![Test](https://github.com/supermarsx/altrightclick/actions/workflows/test.yml/badge.svg)](https://github.com/supermarsx/altrightclick/actions/workflows/test.yml)
 [![Coverage Workflow](https://github.com/supermarsx/altrightclick/actions/workflows/coverage.yml/badge.svg)](https://github.com/supermarsx/altrightclick/actions/workflows/coverage.yml)
