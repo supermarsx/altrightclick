@@ -36,15 +36,17 @@ jobs:
       - name: Generate coverage (Cobertura) and badge
         shell: pwsh
         run: |
-          $ctest = (Get-Command ctest).Source
-          if (-not $ctest) { Write-Host "ctest not found"; exit 0 }
           $cov = "coverage.xml"
           $occ = "C:\\Program Files\\OpenCppCoverage\\OpenCppCoverage.exe"
           $tests = Get-ChildItem -Path (Join-Path $PWD "build/x64/Release") -Filter "*test.exe" -ErrorAction SilentlyContinue
           if (-not $tests) { Write-Host "No test executables found for coverage"; exit 0 }
           $moduleArgs = @()
           foreach ($t in $tests) { $moduleArgs += @('--modules', $t.FullName) }
-          & "$occ" --export_type "cobertura:$cov" --quiet --cover_children @moduleArgs --sources "$env:GITHUB_WORKSPACE" -- `"$ctest`" -C Release --output-on-failure
+          # Create a runner script to execute all tests without ctest dependency
+          $runner = "run_tests.ps1"
+          "`$ErrorActionPreference='Stop'" | Out-File -FilePath $runner -Encoding UTF8
+          foreach ($t in $tests) { "& `"$($t.FullName)`"" | Out-File -FilePath $runner -Encoding UTF8 -Append }
+          & "$occ" --export_type "cobertura:$cov" --quiet --cover_children @moduleArgs --sources "$env:GITHUB_WORKSPACE" -- powershell -NoProfile -ExecutionPolicy Bypass -File $runner
           if (!(Test-Path $cov)) { Write-Host "Coverage file not created"; exit 0 }
           python -m pip install --upgrade pip
           python -m pip install genbadge[all]
