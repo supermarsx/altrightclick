@@ -22,6 +22,8 @@ jobs:
         with:
           # Ensure we push changes to the default branch
           ref: main
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install jq
         run: sudo apt-get update && sudo apt-get install -y jq
@@ -88,6 +90,10 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config pull.rebase true
+          git fetch origin main
+          # Rebase on top of latest main to avoid non-fast-forward
+          git rebase origin/main || true
           git add scoop/altrightclick.json
           git commit -m "scoop: sync manifest to latest release" || echo "No changes"
-          git push
+          git push origin HEAD:main
