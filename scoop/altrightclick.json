@@ -6,12 +6,12 @@
   "architecture": {
     "64bit": {
       "url": "https://github.com/supermarsx/altrightclick/releases/download/v0.1.25.10.03/altrightclick-windows-x64.zip",
-      "hash": "e73766008fe158286912cb36dc6ee7965c6ba7f34b2c2ccddc0a1c59cfde139d",
+      "hash": "ff671d27b9bd013a9662b80d81a03ad36726ab0e594eda47edfd778c4f5e8be6",
       "extract_dir": "."
     },
     "arm64": {
       "url": "https://github.com/supermarsx/altrightclick/releases/download/v0.1.25.10.03/altrightclick-windows-arm64.zip",
-      "hash": "b002254a180ace6531aef479744e8e438bcc9ee684792642373016a039eebcaa",
+      "hash": "bbdacae5ac05b2a4784e35ca32ffc3fcfe3fc4a51c522176f1908d545b02dc2a",
       "extract_dir": "."
     }
   },
