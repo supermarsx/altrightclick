@@ -51,7 +51,8 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install genbadge[all]
           New-Item -Type Directory badges -ErrorAction SilentlyContinue | Out-Null
-          python -m genbadge coverage -i $cov -o badges/coverage.svg
+          # genbadge is a console script; use module invocation for reliability on Windows
+          python -m genbadge.coverage -i $cov -o badges/coverage.svg
 
       - name: Upload coverage artifacts
         if: ${{ hashFiles('coverage.xml') != '' }}
