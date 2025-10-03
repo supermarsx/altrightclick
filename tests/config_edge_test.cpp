@@ -25,16 +25,15 @@ static void expect(bool cond, const char *msg) {
 int main() {
     // Case-insensitive keys/values, whitespace, comments
     {
-        const char *cfg =
-            "; comment\n"
-            " # another\n"
-            "  Enabled = FaLsE  \n"
-            "  SHOW_TRAY = true\n"
-            "  modifier = alt , ctrl \n"
-            "  exit_key = esc \n"
-            "  trigger = mbutton \n"
-            "  click_time_ms = 99999  \n"  // ignored (out of range)
-            "  move_radius_px = -2 \n";   // accepted as integer
+        const char *cfg = "; comment\n"
+                          " # another\n"
+                          "  Enabled = FaLsE  \n"
+                          "  SHOW_TRAY = true\n"
+                          "  modifier = alt , ctrl \n"
+                          "  exit_key = esc \n"
+                          "  trigger = mbutton \n"
+                          "  click_time_ms = 99999  \n"  // ignored (out of range)
+                          "  move_radius_px = -2 \n";    // accepted as integer
         std::string path = write_tmp("config_edge_case.ini", cfg);
         Config c = arc::load_config(path);
         expect(c.enabled == false, "enabled parsed false (case-insensitive)");
@@ -49,8 +48,7 @@ int main() {
 
     // Unknown modifier should keep default; unknown tokens in combo are ignored
     {
-        const char *cfg =
-            "modifier=UNKNOWN\n";
+        const char *cfg = "modifier=UNKNOWN\n";
         std::string path = write_tmp("config_unknown_modifier.ini", cfg);
         Config c = arc::load_config(path);
         expect(c.modifier_vk != 0u, "unknown modifier leaves default non-zero");
@@ -97,4 +95,3 @@ int main() {
     std::printf("[OK] config edge tests passed\n");
     return 0;
 }
-
