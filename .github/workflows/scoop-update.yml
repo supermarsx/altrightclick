@@ -1,8 +1,11 @@
 name: Scoop Update
 
 on:
-  schedule:
-    - cron: '0 4 * * *'
+  # Run only after the Rolling Release workflow completes (and succeeds)
+  workflow_run:
+    workflows: ["Rolling Release"]
+    types: [completed]
+  # Allow manual runs if needed
   workflow_dispatch:
 
 permissions:
@@ -11,9 +14,14 @@ permissions:
 jobs:
   update:
     runs-on: ubuntu-latest
+    # Gate on success of Rolling Release when triggered by workflow_run
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          # Ensure we push changes to the default branch
+          ref: main
 
       - name: Install jq
         run: sudo apt-get update && sudo apt-get install -y jq
@@ -32,6 +40,11 @@ jobs:
           ARM64_URL=$(jq -r '.assets[] | select(.name=="altrightclick-windows-arm64.zip").browser_download_url' latest.json)
           X64_SHA_URL=$(jq -r '.assets[] | select(.name=="altrightclick-windows-x64.zip.sha256").browser_download_url' latest.json)
           ARM64_SHA_URL=$(jq -r '.assets[] | select(.name=="altrightclick-windows-arm64.zip.sha256").browser_download_url' latest.json)
+          if [ -z "$TAG" ] || [ "$TAG" = "null" ]; then echo "No latest release found" >&2; cat latest.json; exit 1; fi
+          if [ -z "$X64_URL" ] || [ "$X64_URL" = "null" ]; then echo "x64 asset URL missing in latest release" >&2; exit 1; fi
+          if [ -z "$ARM64_URL" ] || [ "$ARM64_URL" = "null" ]; then echo "arm64 asset URL missing in latest release" >&2; exit 1; fi
+          if [ -z "$X64_SHA_URL" ] || [ "$X64_SHA_URL" = "null" ]; then echo "x64 sha256 asset URL missing in latest release" >&2; exit 1; fi
+          if [ -z "$ARM64_SHA_URL" ] || [ "$ARM64_SHA_URL" = "null" ]; then echo "arm64 sha256 asset URL missing in latest release" >&2; exit 1; fi
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "name=$NAME" >> "$GITHUB_OUTPUT"
           echo "x64=$X64_URL" >> "$GITHUB_OUTPUT"
@@ -43,8 +56,13 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          curl -sSfL -H "Authorization: Bearer ${GH_TOKEN}" "${{ steps.meta.outputs.x64sha }}" -o x64.sha256
-          curl -sSfL -H "Authorization: Bearer ${GH_TOKEN}" "${{ steps.meta.outputs.arm64sha }}" -o arm64.sha256
+          set -euo pipefail
+          X64_SHA_URL="${{ steps.meta.outputs.x64sha }}"
+          ARM64_SHA_URL="${{ steps.meta.outputs.arm64sha }}"
+          if [ -z "$X64_SHA_URL" ]; then echo "Empty x64 sha256 URL" >&2; exit 1; fi
+          if [ -z "$ARM64_SHA_URL" ]; then echo "Empty arm64 sha256 URL" >&2; exit 1; fi
+          curl -sSfL -H "Authorization: Bearer ${GH_TOKEN}" "$X64_SHA_URL" -o x64.sha256
+          curl -sSfL -H "Authorization: Bearer ${GH_TOKEN}" "$ARM64_SHA_URL" -o arm64.sha256
           X64_HASH=$(cut -d ' ' -f1 x64.sha256)
           ARM64_HASH=$(cut -d ' ' -f1 arm64.sha256)
           echo "X64_HASH=$X64_HASH" >> $GITHUB_ENV
@@ -73,4 +91,3 @@ jobs:
           git add scoop/altrightclick.json
           git commit -m "scoop: sync manifest to latest release" || echo "No changes"
           git push
-
