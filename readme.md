@@ -1,13 +1,8 @@
 # altrightclick
 
-[![Format](https://github.com/supermarsx/altrightclick/actions/workflows/format.yml/badge.svg)](https://github.com/supermarsx/altrightclick/actions/workflows/format.yml)
-[![Auto Format](https://github.com/supermarsx/altrightclick/actions/workflows/auto-format.yml/badge.svg)](https://github.com/supermarsx/altrightclick/actions/workflows/auto-format.yml)
-[![Lint](https://github.com/supermarsx/altrightclick/actions/workflows/lint.yml/badge.svg)](https://github.com/supermarsx/altrightclick/actions/workflows/lint.yml)
-[![Test](https://github.com/supermarsx/altrightclick/actions/workflows/test.yml/badge.svg)](https://github.com/supermarsx/altrightclick/actions/workflows/test.yml)
-[![Coverage Workflow](https://github.com/supermarsx/altrightclick/actions/workflows/coverage.yml/badge.svg)](https://github.com/supermarsx/altrightclick/actions/workflows/coverage.yml)
-[![Build](https://github.com/supermarsx/altrightclick/actions/workflows/build.yml/badge.svg)](https://github.com/supermarsx/altrightclick/actions/workflows/build.yml)
-[![Rolling Release](https://github.com/supermarsx/altrightclick/actions/workflows/release.yml/badge.svg)](https://github.com/supermarsx/altrightclick/actions/workflows/release.yml)
-[![Scoop Update](https://github.com/supermarsx/altrightclick/actions/workflows/scoop-update.yml/badge.svg)](https://github.com/supermarsx/altrightclick/actions/workflows/scoop-update.yml)
+altrightclick turns Alt + Left Click into a Right Click on Windows by installing a low-level mouse hook. It can run as a tray app with a simple config file, and provides CLI commands for installing/uninstalling a Windows service (with caveats about Session 0 isolation).
+
+
 [![Coverage](badges/coverage.svg)](badges/coverage.svg)
 [![Downloads](https://img.shields.io/github/downloads/supermarsx/altrightclick/total.svg)](https://github.com/supermarsx/altrightclick/releases)
 [![Stars](https://img.shields.io/github/stars/supermarsx/altrightclick.svg?style=social)](https://github.com/supermarsx/altrightclick/stargazers)
@@ -18,7 +13,18 @@
 [![Built with](https://img.shields.io/badge/Built%20with-C%2B%2B17%20%7C%20CMake-blue)](#build-windows)
 [![Windows](https://img.shields.io/badge/Windows-x64%20%7C%20ARM64-0078D6?logo=windows&logoColor=white)](#build-windows)
 
-altrightclick turns Alt + Left Click into a Right Click on Windows by installing a low-level mouse hook. It can run as a tray app with a simple config file, and provides CLI commands for installing/uninstalling a Windows service (with caveats about Session 0 isolation).
+
+CI Status
+
+[![Format](https://github.com/supermarsx/altrightclick/actions/workflows/format.yml/badge.svg)](https://github.com/supermarsx/altrightclick/actions/workflows/format.yml)
+[![Auto Format](https://github.com/supermarsx/altrightclick/actions/workflows/auto-format.yml/badge.svg)](https://github.com/supermarsx/altrightclick/actions/workflows/auto-format.yml)
+[![Lint](https://github.com/supermarsx/altrightclick/actions/workflows/lint.yml/badge.svg)](https://github.com/supermarsx/altrightclick/actions/workflows/lint.yml)
+[![Test](https://github.com/supermarsx/altrightclick/actions/workflows/test.yml/badge.svg)](https://github.com/supermarsx/altrightclick/actions/workflows/test.yml)
+[![Coverage Workflow](https://github.com/supermarsx/altrightclick/actions/workflows/coverage.yml/badge.svg)](https://github.com/supermarsx/altrightclick/actions/workflows/coverage.yml)
+[![Build](https://github.com/supermarsx/altrightclick/actions/workflows/build.yml/badge.svg)](https://github.com/supermarsx/altrightclick/actions/workflows/build.yml)
+
+[![Rolling Release](https://github.com/supermarsx/altrightclick/actions/workflows/release.yml/badge.svg)](https://github.com/supermarsx/altrightclick/actions/workflows/release.yml)
+[![Scoop Update](https://github.com/supermarsx/altrightclick/actions/workflows/scoop-update.yml/badge.svg)](https://github.com/supermarsx/altrightclick/actions/workflows/scoop-update.yml)
 
 ## Features
 - Alt + Left Click triggers a Right Click (default ALT modifier)
