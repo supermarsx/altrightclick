@@ -40,8 +40,11 @@ jobs:
           if (-not $ctest) { Write-Host "ctest not found"; exit 0 }
           $cov = "coverage.xml"
           $occ = "C:\\Program Files\\OpenCppCoverage\\OpenCppCoverage.exe"
-          $modules = (Join-Path $PWD "build/x64/Release/*test.exe")
-          & "$occ" --export_type "cobertura:$cov" --quiet --cover_children --modules "$modules" --sources "$env:GITHUB_WORKSPACE" -- `"$ctest`" -C Release --output-on-failure
+          $tests = Get-ChildItem -Path (Join-Path $PWD "build/x64/Release") -Filter "*test.exe" -ErrorAction SilentlyContinue
+          if (-not $tests) { Write-Host "No test executables found for coverage"; exit 0 }
+          $moduleArgs = @()
+          foreach ($t in $tests) { $moduleArgs += @('--modules', $t.FullName) }
+          & "$occ" --export_type "cobertura:$cov" --quiet --cover_children @moduleArgs --sources "$env:GITHUB_WORKSPACE" -- `"$ctest`" -C Release --output-on-failure
           if (!(Test-Path $cov)) { Write-Host "Coverage file not created"; exit 0 }
           python -m pip install --upgrade pip
           python -m pip install genbadge[all]
@@ -64,4 +67,3 @@ jobs:
           commit_message: "chore(ci): update coverage badge and report"
           branch: ${{ github.head_ref || github.ref_name }}
           file_pattern: badges/coverage.svg coverage.xml
-
