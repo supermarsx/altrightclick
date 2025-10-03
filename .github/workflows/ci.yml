@@ -107,11 +107,12 @@ jobs:
       - name: Generate coverage (Cobertura) and badge
         shell: pwsh
         run: |
-          $exe = Join-Path $PWD "build/x64/Release/config_test.exe"
-          if (!(Test-Path $exe)) { Write-Host "Test exe not found: $exe"; exit 0 }
+          $ctest = (Get-Command ctest).Source
+          if (-not $ctest) { Write-Host "ctest not found"; exit 0 }
           $cov = "coverage.xml"
           $occ = "C:\\Program Files\\OpenCppCoverage\\OpenCppCoverage.exe"
-          & "$occ" --export_type "cobertura:$cov" --quiet --cover_children --modules "$exe" --sources "$env:GITHUB_WORKSPACE" -- "$exe"
+          $modules = (Join-Path $PWD "build/x64/Release/*test.exe")
+          & "$occ" --export_type "cobertura:$cov" --quiet --cover_children --modules "$modules" --sources "$env:GITHUB_WORKSPACE" -- `"$ctest`" -C Release --output-on-failure
           if (!(Test-Path $cov)) { Write-Host "Coverage file not created"; exit 0 }
           python -m pip install --upgrade pip
           python -m pip install genbadge[all]
