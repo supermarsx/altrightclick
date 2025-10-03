@@ -33,7 +33,7 @@ int main() {
                           "  exit_key = esc \n"
                           "  trigger = mbutton \n"
                           "  click_time_ms = 99999  \n"  // ignored (out of range)
-                          "  move_radius_px = -2 \n";  // ignored (out of range), stays default
+                          "  move_radius_px = -2 \n";    // ignored (out of range), stays default
         std::string path = write_tmp("config_edge_case.ini", cfg);
         Config c = arc::load_config(path);
         expect(c.enabled == false, "enabled parsed false (case-insensitive)");
