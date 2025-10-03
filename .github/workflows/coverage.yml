@@ -61,9 +61,9 @@ jobs:
             badges/coverage.svg
 
       - name: Commit coverage badge and XML
-        if: ${{ hashFiles('badges/coverage.svg') != '' }}
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && hashFiles('badges/coverage.svg') != '' }}
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: "chore(ci): update coverage badge and report"
-          branch: ${{ github.head_ref || github.ref_name }}
+          branch: main
           file_pattern: badges/coverage.svg coverage.xml
