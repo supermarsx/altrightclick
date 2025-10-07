@@ -1,7 +1,19 @@
+/**
+ * @file singleton.cpp
+ * @brief Named mutex based process singleton implementation.
+ */
+
 #include "arc/singleton.h"
 
-namespace arc {
+namespace arc::singleton {
 
+/**
+ * Creates/opens a named mutex and records ownership status.
+ *
+ * @param name Mutex name, including scope prefix like "Local\\" or "Global\\".
+ * @note If the mutex already exists, GetLastError() will return
+ *       ERROR_ALREADY_EXISTS and @ref acquired_ remains false.
+ */
 SingletonGuard::SingletonGuard(const std::wstring &name) {
     // Create the named mutex. If it already exists, GetLastError() == ERROR_ALREADY_EXISTS.
     handle_ = CreateMutexW(nullptr, FALSE, name.c_str());
@@ -10,6 +22,7 @@ SingletonGuard::SingletonGuard(const std::wstring &name) {
     }
 }
 
+/** Releases the mutex handle on destruction. */
 SingletonGuard::~SingletonGuard() {
     if (handle_) {
         CloseHandle(handle_);
@@ -17,14 +30,16 @@ SingletonGuard::~SingletonGuard() {
     }
 }
 
-std::wstring default_singleton_name() {
+/** Returns the default per-session mutex name for the interactive app. */
+std::wstring default_name() {
     // Per-session uniqueness is typically preferred for tray apps.
     return L"Local\\AltRightClick.Singleton";
 }
 
-std::wstring service_singleton_name() {
+/** Returns the global mutex name for the service context. */
+std::wstring service_name() {
     // Global uniqueness for service context; distinct from interactive name
     return L"Global\\AltRightClick.Service";
 }
 
-}  // namespace arc
+}  // namespace arc::singleton

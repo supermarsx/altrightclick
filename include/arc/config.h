@@ -1,31 +1,53 @@
+/**
+ * @file config.h
+ * @brief Configuration model and helpers.
+ *
+ * Defines the persistent configuration used by the application, along with
+ * load/save helpers. The config can be stored alongside the executable or in
+ * %APPDATA%\\altrightclick\\config.ini. The controller can optionally watch
+ * the file for live reload.
+ */
 #pragma once
 
 #include <string>
 #include <vector>
+#include <filesystem>
 
-namespace arc {
+namespace arc { namespace config {
 
+/**
+ * @brief Global runtime configuration for the app.
+ */
 struct Config {
+    /// Enable/disable the hook functionality at runtime.
     bool enabled = true;
+
+    /// Show a system tray icon with runtime controls.
     bool show_tray = true;
-    // Modifier key(s): single or combo.
-    // Back-compat single key:
-    unsigned int modifier_vk = 0x12;  // VK_MENU
-    // Combo (parsed from modifier string, supports ALT,CTRL,SHIFT,WIN, e.g. "ALT+CTRL")
-    std::vector<unsigned int> modifier_combo_vks;  // if empty, use modifier_vk
-    // Exit key to stop the app when not running as service
+
+    /// Legacy single modifier virtual-key (default ALT / VK_MENU).
+    /// Used when @ref modifier_combo_vks is empty.
+    unsigned int modifier_vk = 0x12;  // VK_MENU (ALT)
+    /// Optional combo of modifier keys (e.g., {VK_MENU, VK_CONTROL}).
+    std::vector<unsigned int> modifier_combo_vks;
+
+    /// Exit key to stop the interactive app (ignored for service mode).
     unsigned int exit_vk = 0x1B;  // VK_ESCAPE
-    // Ignore externally injected mouse events (LLMHF_INJECTED/LLMHF_LOWER_IL_INJECTED)
+
+    /// Ignore externally injected mouse events (LLMHF_INJECTED/LLMHF_LOWER_IL_INJECTED).
     bool ignore_injected = true;
-    // Click vs drag discrimination (defaults)
-    // Maximum press duration (ms) to treat as a click
+
+    /// Max press duration (ms) to consider a click vs. hold/drag.
     unsigned int click_time_ms = 250;
-    // Maximum movement radius (pixels) to treat as a click
+    /// Max pointer movement radius (px) to consider a click.
     int move_radius_px = 6;
-    // Logging
-    std::string log_level = "info";  // error|warn|info|debug
-    std::string log_file;            // empty for stdout/stderr only
-    // Trigger button for translation
+
+    /// Logging level name: error|warn|info|debug.
+    std::string log_level = "info";
+    /// Optional log file path; empty for console only.
+    std::string log_file;
+
+    /// Source button that triggers translation.
     enum class Trigger {
         Left,
         Middle,
@@ -33,24 +55,41 @@ struct Config {
         X2
     };
     Trigger trigger = Trigger::Left;
-    // Live reload
+
+    /// Live reload toggle for config file changes.
     bool watch_config = false;
 };
 
-// Loads configuration from file path. If not found, keeps defaults.
-// Supports simple key=value lines (case-insensitive keys):
-// enabled=true|false, show_tray=true|false, modifier=ALT|CTRL|SHIFT|WIN, exit_key=ESC|F12
-// ignore_injected=true|false, click_time_ms=<uint>, move_radius_px=<int>
-// log_level=error|warn|info|debug, log_file=<path>
-// trigger=LEFT|MIDDLE|X1|X2; modifier can be combos like ALT+CTRL or ALT,CTRL
-// watch_config=true|false
-Config load_config(const std::string &path);
+/**
+ * @brief Loads configuration from a file.
+ *
+ * If the file is missing or invalid, returns defaults. Supports key=value
+ * lines with case-insensitive keys. Unknown keys are ignored.
+ *
+ * @param path UTF-8 path to configuration file.
+ * @return Parsed Config object (with defaults on failure).
+ */
+Config load(const std::filesystem::path &path);
 
-// Finds a default config path: <exe_dir>\\config.ini if present, otherwise
-// %APPDATA%\\altrightclick\\config.ini
-std::string default_config_path();
+/**
+ * @brief Computes the default configuration file path.
+ *
+ * Prefers <exe_dir>\\config.ini if present; otherwise uses
+ * %APPDATA%\\altrightclick\\config.ini.
+ */
+std::filesystem::path default_path();
 
-// Save configuration back to the given path. Returns true on success.
-bool save_config(const std::string &path, const Config &cfg);
+/**
+ * @brief Saves configuration to disk.
+ *
+ * Creates the parent directory as needed.
+ *
+ * @param path Destination UTF-8 path.
+ * @param cfg  Configuration to write.
+ * @return true on success.
+ */
+bool save(const std::filesystem::path &path, const Config &cfg);
+
+}  // namespace config
 
 }  // namespace arc

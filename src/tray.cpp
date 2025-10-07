@@ -1,3 +1,8 @@
+/**
+ * @file tray.cpp
+ * @brief System tray icon/window and worker thread implementation.
+ */
+
 #include "arc/tray.h"
 
 #include <shellapi.h>
@@ -5,33 +10,47 @@
 #include <algorithm>
 #include <string>
 #include <thread>
+#include <filesystem>
 
 #include "arc/config.h"
 #include "arc/hook.h"
 #include "arc/log.h"
 
 namespace {
+/// Custom window message used by the tray icon callback.
 constexpr UINT WM_TRAYICON = WM_APP + 1;
+/// Last registered tray icon data (owner HWND, callbacks, etc.).
 NOTIFYICONDATAW g_nid{};
+/// Worker thread hosting the tray window/message loop.
 static std::thread g_trayThread;
+/// Thread id of the tray worker for PostThreadMessage/WM_QUIT.
 static DWORD g_trayThreadId = 0;
 
+/**
+ * @brief Command identifiers for the tray popup menu.
+ */
 enum MenuId : UINT {
-    kMenuExit = 1,
-    kMenuToggleEnabled = 50,
-    kMenuClickTimeInc = 100,
-    kMenuClickTimeDec = 101,
-    kMenuMoveRadiusInc = 102,
-    kMenuMoveRadiusDec = 103,
-    kMenuToggleIgnoreInjected = 104,
-    kMenuSaveConfig = 105,
-    kMenuOpenConfigFolder = 106,
+    kMenuExit = 1,                 ///< Exit application.
+    kMenuToggleEnabled = 50,       ///< Toggle enable/disable.
+    kMenuClickTimeInc = 100,       ///< Increase click time.
+    kMenuClickTimeDec = 101,       ///< Decrease click time.
+    kMenuMoveRadiusInc = 102,      ///< Increase movement radius.
+    kMenuMoveRadiusDec = 103,      ///< Decrease movement radius.
+    kMenuToggleIgnoreInjected = 104, ///< Toggle ignore injected events.
+    kMenuSaveConfig = 105,         ///< Save settings to config file.
+    kMenuOpenConfigFolder = 106,   ///< Open folder containing config file.
 };
 
-HMENU create_tray_menu(const arc::TrayContext *ctx) {
+/**
+ * @brief Builds a context menu reflecting current configuration.
+ *
+ * @param ctx Live tray context (may be null, in which case a minimal menu is built).
+ * @return Created popup menu; caller must destroy via DestroyMenu.
+ */
+HMENU create_tray_menu(const arc::tray::TrayContext *ctx) {
     HMENU menu = CreatePopupMenu();
     std::wstring en = L"Enabled: ";
-    en += (ctx && ctx->cfg && ctx->cfg->enabled) ? L"ON" : L"OFF";
+    en += (ctx && ctx->cfg.enabled) ? L"ON" : L"OFF";
     AppendMenuW(menu, MF_STRING, kMenuToggleEnabled, en.c_str());
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
     AppendMenuW(menu, MF_STRING, kMenuClickTimeInc, L"Click Time +10 ms");
@@ -40,7 +59,7 @@ HMENU create_tray_menu(const arc::TrayContext *ctx) {
     AppendMenuW(menu, MF_STRING, kMenuMoveRadiusDec, L"Move Radius -1 px");
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
     std::wstring inj = L"Ignore Injected: ";
-    inj += (ctx && ctx->cfg && ctx->cfg->ignore_injected) ? L"ON" : L"OFF";
+    inj += (ctx && ctx->cfg.ignore_injected) ? L"ON" : L"OFF";
     AppendMenuW(menu, MF_STRING, kMenuToggleIgnoreInjected, inj.c_str());
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
     AppendMenuW(menu, MF_STRING, kMenuSaveConfig, L"Save Settings");
@@ -49,6 +68,7 @@ HMENU create_tray_menu(const arc::TrayContext *ctx) {
     return menu;
 }
 
+/** Converts a UTF-8 string to UTF-16. */
 static std::wstring to_w(const std::string &s) {
     int n = MultiByteToWideChar(CP_UTF8, 0, s.c_str(), -1, nullptr, 0);
     std::wstring w(n ? n - 1 : 0, L'\0');
@@ -57,6 +77,7 @@ static std::wstring to_w(const std::string &s) {
     return w;
 }
 
+/** Returns directory part of a path (or the input if no separator is found). */
 static std::wstring dir_of(const std::wstring &path) {
     size_t pos = path.find_last_of(L"\\/");
     if (pos == std::wstring::npos)
@@ -64,6 +85,7 @@ static std::wstring dir_of(const std::wstring &path) {
     return path.substr(0, pos);
 }
 
+/** Hidden tray window procedure handling icon/menu interactions. */
 LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     switch (msg) {
     case WM_TRAYICON: {
@@ -71,53 +93,54 @@ LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
             POINT pt;
             GetCursorPos(&pt);
             SetForegroundWindow(hwnd);
-            auto *ctx = reinterpret_cast<arc::TrayContext *>(GetWindowLongPtr(hwnd, GWLP_USERDATA));
+            auto *ctx = reinterpret_cast<arc::tray::TrayContext *>(GetWindowLongPtr(hwnd, GWLP_USERDATA));
             HMENU menu = create_tray_menu(ctx);
             UINT cmd = TrackPopupMenu(menu, TPM_RETURNCMD | TPM_NONOTIFY, pt.x, pt.y, 0, hwnd, nullptr);
             DestroyMenu(menu);
-            if (ctx && ctx->cfg) {
+            if (ctx) {
                 switch (cmd) {
                 case kMenuToggleEnabled:
-                    ctx->cfg->enabled = !ctx->cfg->enabled;
-                    arc::apply_hook_config(*ctx->cfg);
-                    arc::tray_notify(L"altrightclick", ctx->cfg->enabled ? L"Enabled" : L"Disabled");
+                    ctx->cfg.enabled = !ctx->cfg.enabled;
+                    arc::hook::apply_hook_config(ctx->cfg);
+                    arc::tray::notify(L"altrightclick", ctx->cfg.enabled ? L"Enabled" : L"Disabled");
                     break;
                 case kMenuClickTimeInc:
-                    ctx->cfg->click_time_ms =
-                        static_cast<unsigned int>(std::min<int>(ctx->cfg->click_time_ms + 10, 5000));
-                    arc::apply_hook_config(*ctx->cfg);
+                    ctx->cfg.click_time_ms =
+                        static_cast<unsigned int>(std::min<int>(ctx->cfg.click_time_ms + 10, 5000));
+                    arc::hook::apply_hook_config(ctx->cfg);
                     break;
                 case kMenuClickTimeDec:
-                    ctx->cfg->click_time_ms =
-                        static_cast<unsigned int>(std::max<int>(static_cast<int>(ctx->cfg->click_time_ms) - 10, 10));
-                    arc::apply_hook_config(*ctx->cfg);
+                    ctx->cfg.click_time_ms =
+                        static_cast<unsigned int>(std::max<int>(static_cast<int>(ctx->cfg.click_time_ms) - 10, 10));
+                    arc::hook::apply_hook_config(ctx->cfg);
                     break;
                 case kMenuMoveRadiusInc:
-                    ctx->cfg->move_radius_px = std::min(ctx->cfg->move_radius_px + 1, 100);
-                    arc::apply_hook_config(*ctx->cfg);
+                    ctx->cfg.move_radius_px =
+                        static_cast<unsigned int>(std::min<int>(static_cast<int>(ctx->cfg.move_radius_px) + 1, 100));
+                    arc::hook::apply_hook_config(ctx->cfg);
                     break;
                 case kMenuMoveRadiusDec:
-                    ctx->cfg->move_radius_px = std::max(ctx->cfg->move_radius_px - 1, 0);
-                    arc::apply_hook_config(*ctx->cfg);
+                    ctx->cfg.move_radius_px =
+                        static_cast<unsigned int>(std::max<int>(static_cast<int>(ctx->cfg.move_radius_px) - 1, 0));
+                    arc::hook::apply_hook_config(ctx->cfg);
                     break;
                 case kMenuToggleIgnoreInjected:
-                    ctx->cfg->ignore_injected = !ctx->cfg->ignore_injected;
-                    arc::apply_hook_config(*ctx->cfg);
+                    ctx->cfg.ignore_injected = !ctx->cfg.ignore_injected;
+                    arc::hook::apply_hook_config(ctx->cfg);
                     break;
                 case kMenuSaveConfig:
-                    if (ctx->config_path && !ctx->config_path->empty()) {
-                        arc::save_config(*ctx->config_path, *ctx->cfg);
+                    if (!ctx->config_path.empty()) {
+                        arc::config::save(ctx->config_path, ctx->cfg);
                     }
                     break;
                 case kMenuOpenConfigFolder: {
-                    std::string p = (ctx->config_path && !ctx->config_path->empty()) ? *ctx->config_path
-                                                                                     : arc::default_config_path();
-                    std::wstring wp = to_w(p);
-                    std::wstring dir = dir_of(wp);
-                    ShellExecuteW(nullptr, L"open", dir.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
+                    std::filesystem::path dir = ctx->config_path.parent_path();
+                    std::wstring wdir = dir.wstring();
+                    ShellExecuteW(nullptr, L"open", wdir.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
                     break;
                 }
                 case kMenuExit:
+                    ctx->exit_requested.store(true);
                     PostQuitMessage(0);
                     break;
                 default:
@@ -138,9 +161,12 @@ LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
 }
 }  // namespace
 
-namespace arc {
+namespace arc::tray {
 
-HWND tray_init(HINSTANCE hInstance, const std::wstring &tooltip, arc::TrayContext *ctx) {
+/**
+ * Creates a hidden window, registers the tray icon, and stores ctx.
+ */
+HWND init(HINSTANCE hInstance, const std::wstring &tooltip, TrayContext *ctx) {
     const wchar_t *kClassName = L"AltRightClickTrayWindow";
     WNDCLASSEXW wc{sizeof(WNDCLASSEXW)};
     wc.lpfnWndProc = TrayWndProc;
@@ -170,12 +196,13 @@ HWND tray_init(HINSTANCE hInstance, const std::wstring &tooltip, arc::TrayContex
     wcsncpy_s(g_nid.szTip, tooltip.c_str(), _TRUNCATE);
 
     if (!Shell_NotifyIconW(NIM_ADD, &g_nid)) {
-        arc::log_error("Shell_NotifyIconW(NIM_ADD) failed");
+        arc::log::error("Shell_NotifyIconW(NIM_ADD) failed");
     }
     return hwnd;
 }
 
-void tray_cleanup(HWND hwnd) {
+/** Removes the tray icon and destroys the hidden window. */
+void cleanup(HWND hwnd) {
     if (g_nid.hWnd) {
         Shell_NotifyIconW(NIM_DELETE, &g_nid);
         g_nid = NOTIFYICONDATAW{};
@@ -184,19 +211,20 @@ void tray_cleanup(HWND hwnd) {
         DestroyWindow(hwnd);
 }
 
-}  // namespace arc
+}  // namespace arc::tray
 
-namespace arc {
+namespace arc::tray {
 
-bool start_tray_worker(const std::wstring &tooltip, TrayContext *ctx) {
+/** Starts the tray worker thread and pumps a private message loop. */
+bool start(const std::wstring &tooltip, TrayContext *ctx) {
     if (g_trayThread.joinable())
         return true;
     g_trayThread = std::thread([tooltip, ctx]() {
         g_trayThreadId = GetCurrentThreadId();
         HINSTANCE hInst = GetModuleHandleW(nullptr);
-        HWND hwnd = tray_init(hInst, tooltip, ctx);
+        HWND hwnd = init(hInst, tooltip, ctx);
         if (!hwnd) {
-            arc::log_error("Tray worker: failed to create tray window");
+            arc::log::error("Tray worker: failed to create tray window");
             return;
         }
         MSG msg;
@@ -204,20 +232,22 @@ bool start_tray_worker(const std::wstring &tooltip, TrayContext *ctx) {
             TranslateMessage(&msg);
             DispatchMessage(&msg);
         }
-        tray_cleanup(hwnd);
+        cleanup(hwnd);
         g_trayThreadId = 0;
     });
     return true;
 }
 
-void stop_tray_worker() {
+/** Posts WM_QUIT to the tray thread and joins it. */
+void stop() {
     if (g_trayThreadId)
         PostThreadMessage(g_trayThreadId, WM_QUIT, 0, 0);
     if (g_trayThread.joinable())
         g_trayThread.join();
 }
 
-void tray_notify(const std::wstring &title, const std::wstring &message) {
+/** Shows a balloon notification using the tray icon. */
+void notify(const std::wstring &title, const std::wstring &message) {
     if (!g_nid.hWnd)
         return;
     NOTIFYICONDATAW nid = g_nid;
@@ -228,4 +258,5 @@ void tray_notify(const std::wstring &title, const std::wstring &message) {
     Shell_NotifyIconW(NIM_MODIFY, &nid);
 }
 
-}  // namespace arc
+}  // namespace arc::tray
+

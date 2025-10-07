@@ -6,7 +6,7 @@
 
 #include "arc/config.h"
 
-using arc::Config;
+using arc::config::Config;
 
 static std::string write_temp_file(const std::string &name, const std::string &content) {
     // Write to current working directory used by ctest
@@ -27,7 +27,7 @@ static void expect(bool cond, const char *msg) {
 int main() {
     // Defaults
     {
-        Config defaults = arc::load_config("nonexistent.ini");
+        Config defaults = arc::config::load("nonexistent.ini");
         expect(defaults.enabled == true, "enabled default true");
         expect(defaults.show_tray == true, "show_tray default true");
         expect(defaults.modifier_vk != 0u, "modifier default non-zero");
@@ -50,7 +50,7 @@ int main() {
                           "log_level=debug\n"
                           "watch_config=true\n";
         std::string path = write_temp_file("config_test.ini", cfg);
-        Config c = arc::load_config(path);
+        Config c = arc::config::load(path);
         expect(c.enabled == false, "enabled parsed false");
         expect(c.show_tray == false, "show_tray parsed false");
         expect(!c.modifier_combo_vks.empty(), "modifier combo parsed");
@@ -80,8 +80,8 @@ int main() {
         w.log_level = "warn";
         w.watch_config = false;
         std::string out = "config_roundtrip.ini";
-        expect(arc::save_config(out, w), "save_config success");
-        Config r = arc::load_config(out);
+        expect(arc::config::save(out, w), "save_config success");
+        Config r = arc::config::load(out);
         expect(r.enabled == w.enabled, "roundtrip enabled");
         expect(r.show_tray == w.show_tray, "roundtrip show_tray");
         expect(r.modifier_vk == w.modifier_vk, "roundtrip modifier_vk representative");
@@ -94,18 +94,24 @@ int main() {
         std::remove(out.c_str());
     }
 
-    // default_config_path prefers exe_dir\\config.ini when present
+    // default_path prefers exe_dir\\config.ini when present
     {
-        std::string exe_dir_cfg = arc::default_config_path();
+        std::string exe_dir_cfg = arc::config::default_path().u8string();
         // Ensure file exists at exe dir by writing to resolved path
         std::ofstream f(exe_dir_cfg, std::ios::app);
         f << "# temp\n";
         f.close();
-        std::string pick = arc::default_config_path();
-        expect(pick == exe_dir_cfg, "default_config_path prefers exe dir when present");
+        std::string pick = arc::config::default_path().u8string();
+        expect(pick == exe_dir_cfg, "default_path prefers exe dir when present");
         std::remove(exe_dir_cfg.c_str());
     }
 
     std::printf("[OK] config tests passed\n");
     return 0;
 }
+
+
+
+
+
+

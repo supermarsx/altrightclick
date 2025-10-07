@@ -1,3 +1,8 @@
+/**
+ * @file service.cpp
+ * @brief Windows Service helper implementations and service main.
+ */
+
 #include "arc/service.h"
 
 #include <windows.h>
@@ -14,6 +19,13 @@ namespace {
 SERVICE_STATUS_HANDLE g_SvcStatusHandle = nullptr;
 SERVICE_STATUS g_SvcStatus{};
 
+/**
+ * @brief Updates the SCM-visible service status fields.
+ *
+ * @param dwCurrentState A SERVICE_STATE value (e.g., SERVICE_RUNNING).
+ * @param dwWin32ExitCode Win32 error code on failure, NO_ERROR otherwise.
+ * @param dwWaitHint Estimated time for pending start/stop operations (ms).
+ */
 void ReportSvcStatus(DWORD dwCurrentState, DWORD dwWin32ExitCode, DWORD dwWaitHint) {
     g_SvcStatus.dwCurrentState = dwCurrentState;
     g_SvcStatus.dwWin32ExitCode = dwWin32ExitCode;
@@ -28,6 +40,10 @@ void ReportSvcStatus(DWORD dwCurrentState, DWORD dwWin32ExitCode, DWORD dwWaitHi
     SetServiceStatus(g_SvcStatusHandle, &g_SvcStatus);
 }
 
+/**
+ * @brief Receives control requests (stop/shutdown) from the SCM.
+ * @param dwCtrl Control code (SERVICE_CONTROL_STOP, SERVICE_CONTROL_SHUTDOWN, ...).
+ */
 void WINAPI SvcCtrlHandler(DWORD dwCtrl) {
     switch (dwCtrl) {
     case SERVICE_CONTROL_STOP:
@@ -41,13 +57,19 @@ void WINAPI SvcCtrlHandler(DWORD dwCtrl) {
     }
 }
 
+/**
+ * @brief Service entrypoint registered with the SCM dispatcher.
+ *
+ * Installs singleton guard, starts the hook worker thread, reports status to
+ * the SCM, and then pumps a message loop until WM_QUIT is posted (on stop).
+ */
 void WINAPI SvcMain(DWORD, LPTSTR *) {
     g_SvcStatus.dwServiceType = SERVICE_WIN32_OWN_PROCESS;
     g_SvcStatus.dwServiceSpecificExitCode = 0;
 
     g_SvcStatusHandle = RegisterServiceCtrlHandlerW(L"AltRightClickService", SvcCtrlHandler);
     if (!g_SvcStatusHandle) {
-        arc::log_error("RegisterServiceCtrlHandlerW failed: " + arc::last_error_message(GetLastError()));
+        arc::log::error("RegisterServiceCtrlHandlerW failed: " + arc::log::last_error_message(GetLastError()));
         return;
     }
 
@@ -55,28 +77,22 @@ void WINAPI SvcMain(DWORD, LPTSTR *) {
 
     // Prevent multiple service instances (distinct from interactive singleton)
     {
-        arc::SingletonGuard guard(arc::service_singleton_name());
+        arc::singleton::SingletonGuard guard(arc::singleton::service_name());
         if (!guard.acquired()) {
-            arc::log_warn("Service instance already running (singleton acquired by another process)");
+            arc::log::warn("Service instance already running (singleton acquired by another process)");
             ReportSvcStatus(SERVICE_STOPPED, NO_ERROR, 0);
             return;
         }
     }
 
-    if (!arc::install_mouse_hook()) {
-        arc::log_error("Service: install_mouse_hook failed");
-        ReportSvcStatus(SERVICE_STOPPED, ERROR_SERVICE_SPECIFIC_ERROR, 1);
+    // Start hook worker on its own thread (installs its own hook + private message loop)
+    if (!arc::hook::start()) {
+        arc::log::error("Service: failed to start hook worker");
+        ReportSvcStatus(SERVICE_STOPPED, ERROR_SERVICE_SPECIFIC_ERROR, 2);
         return;
     }
 
     ReportSvcStatus(SERVICE_RUNNING, NO_ERROR, 0);
-
-    // Start hook worker on its own thread
-    if (!arc::start_hook_worker()) {
-        arc::log_error("Service: failed to start hook worker");
-        ReportSvcStatus(SERVICE_STOPPED, ERROR_SERVICE_SPECIFIC_ERROR, 2);
-        return;
-    }
 
     // Message loop for service control (WM_QUIT posted on stop)
     MSG msg;
@@ -85,10 +101,11 @@ void WINAPI SvcMain(DWORD, LPTSTR *) {
         DispatchMessage(&msg);
     }
 
-    arc::stop_hook_worker();
+    arc::hook::stop();
     ReportSvcStatus(SERVICE_STOPPED, NO_ERROR, 0);
 }
 
+/** Returns quoted string if it contains spaces. */
 std::wstring quote(const std::wstring &s) {
     if (s.find(L' ') != std::wstring::npos) {
         return L"\"" + s + L"\"";
@@ -98,22 +115,29 @@ std::wstring quote(const std::wstring &s) {
 
 }  // namespace
 
-namespace arc {
+namespace arc::service {
 
-bool service_install(const std::wstring &name, const std::wstring &display_name,
-                     const std::wstring &bin_path_with_args) {
+/**
+ * Installs a Windows service.
+ *
+ * @param name Internal service name.
+ * @param display_name Friendly name shown in Service Manager.
+ * @param bin_path_with_args Fully quoted executable path followed by args.
+ * @return true on success.
+ */
+bool install(const std::wstring &name, const std::wstring &display_name, const std::wstring &bin_path_with_args) {
     // Basic validation: ensure it starts with a quoted path and has no CR/LF
     if (bin_path_with_args.find(L"\n") != std::wstring::npos || bin_path_with_args.find(L"\r") != std::wstring::npos) {
-        arc::log_error("service_install: binpath contains newline characters");
+        arc::log::error("service_install: binpath contains newline characters");
         return false;
     }
     if (bin_path_with_args.empty() || bin_path_with_args[0] != L'\"') {
-        arc::log_error("service_install: binpath must start with a quoted executable path");
+        arc::log::error("service_install: binpath must start with a quoted executable path");
         return false;
     }
     SC_HANDLE scm = OpenSCManagerW(nullptr, nullptr, SC_MANAGER_CREATE_SERVICE);
     if (!scm) {
-        arc::log_error("OpenSCManagerW failed: " + arc::last_error_message(GetLastError()));
+        arc::log::error("OpenSCManagerW failed: " + arc::log::last_error_message(GetLastError()));
         return false;
     }
 
@@ -122,7 +146,7 @@ bool service_install(const std::wstring &name, const std::wstring &display_name,
                                    bin_path_with_args.c_str(), nullptr, nullptr, nullptr, nullptr, nullptr);
 
     if (!svc) {
-        arc::log_error("CreateServiceW failed: " + arc::last_error_message(GetLastError()));
+        arc::log::error("CreateServiceW failed: " + arc::log::last_error_message(GetLastError()));
         CloseServiceHandle(scm);
         return false;
     }
@@ -131,15 +155,16 @@ bool service_install(const std::wstring &name, const std::wstring &display_name,
     return true;
 }
 
-bool service_uninstall(const std::wstring &name) {
+/** Uninstalls a Windows service by internal name. */
+bool uninstall(const std::wstring &name) {
     SC_HANDLE scm = OpenSCManagerW(nullptr, nullptr, SC_MANAGER_CONNECT);
     if (!scm) {
-        arc::log_error("OpenSCManagerW failed: " + arc::last_error_message(GetLastError()));
+        arc::log::error("OpenSCManagerW failed: " + arc::log::last_error_message(GetLastError()));
         return false;
     }
     SC_HANDLE svc = OpenServiceW(scm, name.c_str(), DELETE);
     if (!svc) {
-        arc::log_error("OpenServiceW(DELETE) failed: " + arc::last_error_message(GetLastError()));
+        arc::log::error("OpenServiceW(DELETE) failed: " + arc::log::last_error_message(GetLastError()));
         CloseServiceHandle(scm);
         return false;
     }
@@ -149,15 +174,20 @@ bool service_uninstall(const std::wstring &name) {
     return ok;
 }
 
-bool service_start(const std::wstring &name) {
+/**
+ * @brief Starts a Windows service by internal name.
+ * @param name Internal service name.
+ * @return true on success.
+ */
+bool start(const std::wstring &name) {
     SC_HANDLE scm = OpenSCManagerW(nullptr, nullptr, SC_MANAGER_CONNECT);
     if (!scm) {
-        arc::log_error("OpenSCManagerW failed: " + arc::last_error_message(GetLastError()));
+        arc::log::error("OpenSCManagerW failed: " + arc::log::last_error_message(GetLastError()));
         return false;
     }
     SC_HANDLE svc = OpenServiceW(scm, name.c_str(), SERVICE_START);
     if (!svc) {
-        arc::log_error("OpenServiceW(START) failed: " + arc::last_error_message(GetLastError()));
+        arc::log::error("OpenServiceW(START) failed: " + arc::log::last_error_message(GetLastError()));
         CloseServiceHandle(scm);
         return false;
     }
@@ -167,15 +197,20 @@ bool service_start(const std::wstring &name) {
     return ok;
 }
 
-bool service_stop(const std::wstring &name) {
+/**
+ * @brief Stops a Windows service by internal name.
+ * @param name Internal service name.
+ * @return true on success.
+ */
+bool stop(const std::wstring &name) {
     SC_HANDLE scm = OpenSCManagerW(nullptr, nullptr, SC_MANAGER_CONNECT);
     if (!scm) {
-        arc::log_error("OpenSCManagerW failed: " + arc::last_error_message(GetLastError()));
+        arc::log::error("OpenSCManagerW failed: " + arc::log::last_error_message(GetLastError()));
         return false;
     }
     SC_HANDLE svc = OpenServiceW(scm, name.c_str(), SERVICE_STOP);
     if (!svc) {
-        arc::log_error("OpenServiceW(STOP) failed: " + arc::last_error_message(GetLastError()));
+        arc::log::error("OpenServiceW(STOP) failed: " + arc::log::last_error_message(GetLastError()));
         CloseServiceHandle(scm);
         return false;
     }
@@ -186,7 +221,8 @@ bool service_stop(const std::wstring &name) {
     return ok;
 }
 
-bool service_is_running(const std::wstring &name) {
+/** Returns true if the service reports RUNNING. */
+bool is_running(const std::wstring &name) {
     SC_HANDLE scm = OpenSCManagerW(nullptr, nullptr, SC_MANAGER_CONNECT);
     if (!scm)
         return false;
@@ -206,14 +242,15 @@ bool service_is_running(const std::wstring &name) {
     return running;
 }
 
-int service_run(const std::wstring &name) {
+/** Enters the service main loop by connecting to the SCM dispatcher. */
+int run(const std::wstring &name) {
     SERVICE_TABLE_ENTRYW dispatchTable[] = {{const_cast<LPWSTR>(name.c_str()), (LPSERVICE_MAIN_FUNCTIONW)SvcMain},
                                             {nullptr, nullptr}};
     if (!StartServiceCtrlDispatcherW(dispatchTable)) {
-        arc::log_error("StartServiceCtrlDispatcherW failed: " + arc::last_error_message(GetLastError()));
+        arc::log::error("StartServiceCtrlDispatcherW failed: " + arc::log::last_error_message(GetLastError()));
         return 1;
     }
     return 0;
 }
 
-}  // namespace arc
+}  // namespace arc::service

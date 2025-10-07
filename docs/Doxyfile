@@ -1,0 +1,27 @@
+# Doxyfile for altrightclick
+PROJECT_NAME           = "altrightclick"
+PROJECT_NUMBER         = "@ALTRIGHTCLICK_VERSION@"
+OUTPUT_DIRECTORY       = docs/_build
+GENERATE_HTML          = YES
+GENERATE_LATEX         = NO
+QUIET                  = YES
+WARNINGS               = NO
+EXTRACT_ALL            = YES
+EXTRACT_PRIVATE        = NO
+EXTRACT_STATIC         = YES
+JAVADOC_AUTOBRIEF      = YES
+QT_AUTOBRIEF           = YES
+MULTILINE_CPP_IS_BRIEF = YES
+OPTIMIZE_OUTPUT_FOR_C  = NO
+OPTIMIZE_OUTPUT_JAVA   = NO
+OPTIMIZE_FOR_FORTRAN   = NO
+OPTIMIZE_OUTPUT_VHDL   = NO
+WARN_IF_UNDOCUMENTED   = NO
+INPUT                  = include src
+RECURSIVE              = YES
+FILE_PATTERNS          = *.h *.hpp *.hh *.hxx *.c *.cc *.cpp *.cxx
+EXCLUDE_PATTERNS       = */tests/* */build/* */.git/*
+USE_MDFILE_AS_MAINPAGE = 
+HTML_TIMESTAMP         = YES
+GENERATE_TREEVIEW      = YES
+FULL_PATH_NAMES        = NO

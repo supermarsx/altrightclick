@@ -1,16 +1,9 @@
-// Main entry: tray app with optional service management via CLI.
-
-#include <windows.h>
-
-#include <iostream>
-#include <fstream>
-#include <string>
-#include <vector>
-#include <thread>
-#include <atomic>
+/**
+ * @file main.cpp
+ * @brief Main controller for interactive app and CLI/service management.
+ */
 
 #include "arc/hook.h"
-#include "arc/app.h"
 #include "arc/tray.h"
 #include "arc/config.h"
 #include "arc/service.h"
@@ -19,6 +12,14 @@
 #include "arc/log.h"
 #include "altrightclick/version.h"
 
+#include <iostream>
+#include <fstream>
+#include <string>
+#include <thread>
+#include <atomic>
+#include <filesystem>
+
+/** Converts a UTF-8 string to UTF-16 (Windows wide). */
 static std::wstring to_w(const std::string &s) {
     int n = MultiByteToWideChar(CP_UTF8, 0, s.c_str(), -1, nullptr, 0);
     std::wstring w(n ? n - 1 : 0, L'\0');
@@ -27,17 +28,20 @@ static std::wstring to_w(const std::string &s) {
     return w;
 }
 
+/** Returns the full path of the current executable. */
 static std::wstring get_module_path() {
     wchar_t buf[MAX_PATH];
     GetModuleFileNameW(nullptr, buf, MAX_PATH);
     return std::wstring(buf);
 }
 
+/** Returns true if a wide-path file exists. */
 static bool file_exists_w(const std::wstring &path) {
     DWORD attrs = GetFileAttributesW(path.c_str());
     return attrs != INVALID_FILE_ATTRIBUTES && !(attrs & FILE_ATTRIBUTE_DIRECTORY);
 }
 
+/** Conservative validation for embedding a UTF-8 arg in a quoted command. */
 static bool is_safe_arg_utf8(const std::string &s) {
     for (unsigned char c : s) {
         if (c < 0x20)
@@ -48,6 +52,7 @@ static bool is_safe_arg_utf8(const std::string &s) {
     return true;
 }
 
+/** Returns true if the current process has elevated (admin) token. */
 static bool is_elevated() {
     HANDLE token = nullptr;
     if (OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &token)) {
@@ -70,6 +75,7 @@ static bool is_elevated() {
     return isMember == TRUE;
 }
 
+/** Prints CLI usage help to stdout. */
 static void print_help() {
     std::cout << "Usage: altrightclick [options]\n"
                  "\nOptions:\n"
@@ -90,8 +96,9 @@ static void print_help() {
                  "  --help                 Show this help\n";
 }
 
+/** Program entry point. Parses CLI, starts workers, and coordinates shutdown. */
 int main(int argc, char **argv) {
-    std::string config_path = arc::default_config_path();
+    std::string config_path = arc::config::default_path().u8string();
 
     // Parse args
     bool do_install = false, do_uninstall = false, do_start = false, do_stop = false, do_service_status = false,
@@ -140,8 +147,8 @@ int main(int argc, char **argv) {
 
     // Generate config and exit
     if (do_generate_config) {
-        arc::Config defaults;
-        if (arc::save_config(config_path, defaults)) {
+        arc::config::Config defaults;
+        if (arc::config::save(config_path, defaults)) {
             std::cout << "Wrote default config to " << config_path << std::endl;
             return 0;
         }
@@ -157,7 +164,7 @@ int main(int argc, char **argv) {
         }
         std::wstring exe = get_module_path();
         if (!file_exists_w(exe)) {
-            arc::log_error("Service: executable path does not exist");
+            arc::log::error("Service: executable path does not exist");
             return 1;
         }
         std::wstring cmd = L"\"" + exe + L"\" --service";
@@ -165,20 +172,20 @@ int main(int argc, char **argv) {
             if (is_safe_arg_utf8(config_path)) {
                 cmd += L" --config \"" + to_w(config_path) + L"\"";
             } else {
-                arc::log_warn("Service: unsafe characters in config path; skipping --config");
+                arc::log::warn("Service: unsafe characters in config path; skipping --config");
             }
         }
         bool ok = true;
         if (do_install)
-            ok = ok && arc::service_install(svcName, L"Alt Right Click", cmd);
+            ok = ok && arc::service::install(svcName, L"Alt Right Click", cmd);
         if (do_uninstall)
-            ok = ok && arc::service_uninstall(svcName);
+            ok = ok && arc::service::uninstall(svcName);
         if (do_start)
-            ok = ok && arc::service_start(svcName);
+            ok = ok && arc::service::start(svcName);
         if (do_stop)
-            ok = ok && arc::service_stop(svcName);
+            ok = ok && arc::service::stop(svcName);
         if (do_service_status) {
-            bool running = arc::service_is_running(svcName);
+            bool running = arc::service::is_running(svcName);
             std::cout << (running ? "RUNNING" : "STOPPED") << std::endl;
             ok = ok && running;
         }
@@ -196,13 +203,13 @@ int main(int argc, char **argv) {
         }
         bool ok = true;
         if (do_task_install)
-            ok = ok && arc::task_install(taskName, cmd, true);
+            ok = ok && arc::task::install(taskName, cmd, true);
         if (do_task_uninstall)
-            ok = ok && arc::task_uninstall(taskName);
+            ok = ok && arc::task::uninstall(taskName);
         if (do_task_update)
-            ok = ok && arc::task_update(taskName, cmd, true);
+            ok = ok && arc::task::update(taskName, cmd, true);
         if (do_task_status) {
-            bool exists = arc::task_exists(taskName);
+            bool exists = arc::task::exists(taskName);
             std::cout << (exists ? "PRESENT" : "MISSING") << std::endl;
             ok = ok && exists;
         }
@@ -211,49 +218,51 @@ int main(int argc, char **argv) {
     }
 
     if (run_as_service) {
-        return arc::service_run(svcName);
+        return arc::service::run(svcName);
     }
 
     // Normal interactive app: enforce single instance, load config, init hook, tray, message loop
-    arc::SingletonGuard instance(arc::default_singleton_name());
+    arc::singleton::SingletonGuard instance(arc::singleton::default_name());
     if (!instance.acquired()) {
-        arc::log_warn("altrightclick is already running.");
+        arc::log::warn("altrightclick is already running.");
         return 0;
     }
     // Auto-create default config on first run if missing
     {
         std::ifstream f(config_path);
         if (!f.good()) {
-            arc::Config defaults;
-            arc::save_config(config_path, defaults);
+            arc::config::Config defaults;
+            arc::config::save(config_path, defaults);
         }
     }
-    arc::Config cfg = arc::load_config(config_path);
+    arc::config::Config cfg = arc::config::load(config_path);
     if (!cli_log_level.empty())
         cfg.log_level = cli_log_level;
     if (!cli_log_file.empty())
         cfg.log_file = cli_log_file;
-    arc::log_set_level_by_name(cfg.log_level);
+    arc::log::set_level_by_name(cfg.log_level);
     if (!cfg.log_file.empty())
-        arc::log_set_file(cfg.log_file);
-    arc::log_info(std::string("altrightclick ") + ARC_VERSION);
-    arc::log_info(std::string("Using config: ") + config_path);
-    arc::apply_hook_config(cfg);
-    arc::log_start_async();
+        arc::log::set_file(cfg.log_file);
+    arc::log::info(std::string("altrightclick ") + ARC_VERSION);
+    arc::log::info(std::string("Using config: ") + config_path);
+    arc::hook::apply_hook_config(cfg);
+    arc::log::start_async();
 
     if (!cfg.enabled) {
-        arc::log_info("altrightclick: disabled in config.");
+        arc::log::info("altrightclick: disabled in config.");
         return 0;
     }
 
     // Start hook + tray workers
-    if (!arc::start_hook_worker()) {
-        arc::log_error("Failed to start hook worker");
+    if (!arc::hook::start()) {
+        arc::log::error("Failed to start hook worker");
         return 1;
     }
-    arc::TrayContext trayCtx{&cfg, &config_path};
+    std::atomic<bool> exitRequested{false};
+    std::filesystem::path config_path_fs = std::filesystem::path(config_path);
+    arc::tray::TrayContext trayCtx{cfg, config_path_fs, exitRequested};
     if (cfg.show_tray) {
-        arc::start_tray_worker(L"AltRightClick running (Alt+Left => Right)", &trayCtx);
+        arc::tray::start(L"AltRightClick running (Alt+Left => Right)", &trayCtx);
     }
 
     // Optional live reload watcher
@@ -280,27 +289,29 @@ int main(int argc, char **argv) {
                 ULONGLONG cur = get_mtime(wcfg);
                 if (cur != 0 && cur != last) {
                     last = cur;
-                    arc::Config newCfg = arc::load_config(config_path);
+                    arc::config::Config newCfg = arc::config::load(config_path);
                     if (!cli_log_level.empty())
                         newCfg.log_level = cli_log_level;
                     if (!cli_log_file.empty())
                         newCfg.log_file = cli_log_file;
-                    arc::log_set_level_by_name(newCfg.log_level);
+                    arc::log::set_level_by_name(newCfg.log_level);
                     if (!newCfg.log_file.empty())
-                        arc::log_set_file(newCfg.log_file);
-                    arc::apply_hook_config(newCfg);
+                        arc::log::set_file(newCfg.log_file);
+                    arc::hook::apply_hook_config(newCfg);
                     *trayCtx.cfg = newCfg;
-                    arc::tray_notify(L"altrightclick", L"Configuration reloaded");
-                    arc::log_info("Configuration reloaded");
+                    arc::tray::notify(L"altrightclick", L"Configuration reloaded");
+                    arc::log::info("Configuration reloaded");
                 }
             }
         });
     };
     start_watch();
 
-    // Poll for exit key
-    arc::log_info("Alt + Left Click => Right Click. Press exit key to quit.");
+    // Controller: poll for exit key or tray Exit
+    arc::log::info("Alt + Left Click => Right Click. Press exit key to quit.");
     while (true) {
+        if (exitRequested.load())
+            break;
         if (cfg.exit_vk && (GetAsyncKeyState(static_cast<int>(cfg.exit_vk)) & 0x8000))
             break;
         Sleep(50);
@@ -309,8 +320,9 @@ int main(int argc, char **argv) {
     watchStop.store(true);
     if (watchThread.joinable())
         watchThread.join();
-    arc::stop_tray_worker();
-    arc::stop_hook_worker();
-    arc::log_stop_async();
+    arc::tray::stop();
+    arc::hook::stop();
+    arc::log::stop_async();
     return 0;
 }
+

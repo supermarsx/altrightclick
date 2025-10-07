@@ -1,3 +1,15 @@
+/**
+ * @file log.cpp
+ * @brief Lightweight logging implementation with optional async worker.
+ *
+ * Threading model:
+ * - All configuration functions are thread-safe.
+ * - When async mode is enabled via start_async(), write() enqueues lines
+ *   and signals a background thread that flushes to console/file.
+ * - When async mode is disabled, log_msg writes synchronously on the caller's
+ *   thread (still thread-safe for file output via a mutex).
+ */
+
 #include "arc/log.h"
 
 #include <windows.h>
@@ -15,7 +27,7 @@
 
 namespace {
 std::mutex g_logMutex;
-arc::LogLevel g_level = arc::LogLevel::Info;
+arc::log::LogLevel g_level = arc::log::LogLevel::Info;
 std::ofstream g_logFile;
 bool g_logToFile = false;
 bool g_async = false;
@@ -24,20 +36,22 @@ std::condition_variable g_cv;
 bool g_stop = false;
 std::deque<std::string> g_queue;
 
-std::string level_name(arc::LogLevel lvl) {
+/** Returns canonical uppercase name for a log level. */
+std::string level_name(arc::log::LogLevel lvl) {
     switch (lvl) {
-    case arc::LogLevel::Error:
+    case arc::log::LogLevel::Error:
         return "ERROR";
-    case arc::LogLevel::Warn:
+    case arc::log::LogLevel::Warn:
         return "WARN";
-    case arc::LogLevel::Info:
+    case arc::log::LogLevel::Info:
         return "INFO";
-    case arc::LogLevel::Debug:
+    case arc::log::LogLevel::Debug:
         return "DEBUG";
     }
     return "INFO";
 }
 
+/** Returns current local time formatted as YYYY-MM-DD HH:MM:SS. */
 std::string timestamp() {
     auto now = std::chrono::system_clock::now();
     std::time_t t = std::chrono::system_clock::to_time_t(now);
@@ -49,11 +63,13 @@ std::string timestamp() {
 }
 }  // namespace
 
-namespace arc {
+namespace arc::log {
 
-void log_set_level(LogLevel lvl) { g_level = lvl; }
+/** Sets the minimum severity level for log output. */
+void set_level(LogLevel lvl) { g_level = lvl; }
 
-void log_set_level_by_name(const std::string &name) {
+/** Parses a level name (error|warn|info|debug) and sets severity. */
+void set_level_by_name(const std::string &name) {
     std::string n = name;
     for (auto &c : n)
         c = static_cast<char>(::tolower(static_cast<unsigned char>(c)));
@@ -67,7 +83,11 @@ void log_set_level_by_name(const std::string &name) {
         g_level = LogLevel::Debug;
 }
 
-void log_set_file(const std::string &path) {
+/**
+ * Selects a log file to append output to. Pass empty to disable file output.
+ * Thread-safe.
+ */
+void set_file(const std::string &path) {
     std::lock_guard<std::mutex> lk(g_logMutex);
     if (g_logFile.is_open())
         g_logFile.close();
@@ -79,6 +99,7 @@ void log_set_file(const std::string &path) {
     }
 }
 
+/** Returns a UTF-8 message string for a Windows error code. */
 std::string last_error_message(uint32_t err) {
     wchar_t *buf = nullptr;
     DWORD flags = FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS;
@@ -93,7 +114,8 @@ std::string last_error_message(uint32_t err) {
     return out;
 }
 
-void log_start_async() {
+/** Starts the background logging thread (idempotent). */
+void start_async() {
     std::lock_guard<std::mutex> lk(g_logMutex);
     if (g_async)
         return;
@@ -123,7 +145,8 @@ void log_start_async() {
     });
 }
 
-void log_stop_async() {
+/** Signals the background logging thread to stop and joins it. */
+void stop_async() {
     std::unique_lock<std::mutex> lk(g_logMutex);
     if (!g_async)
         return;
@@ -136,7 +159,12 @@ void log_stop_async() {
     g_async = false;
 }
 
-void log_msg(LogLevel lvl, const std::string &msg) {
+/**
+ * Emits a single log line at the given severity.
+ * Writes to stdout/stderr and optionally to a log file. If async mode is
+ * enabled, enqueues the line; otherwise writes synchronously.
+ */
+void write(LogLevel lvl, const std::string &msg) {
     if (static_cast<int>(lvl) > static_cast<int>(g_level))
         return;
     std::ostringstream line;
@@ -158,4 +186,5 @@ void log_msg(LogLevel lvl, const std::string &msg) {
     }
 }
 
-}  // namespace arc
+}  // namespace arc::log
+

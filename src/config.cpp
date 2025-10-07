@@ -1,3 +1,8 @@
+/**
+ * @file config.cpp
+ * @brief Configuration parsing and persistence helpers.
+ */
+
 #include "arc/config.h"
 
 #include <windows.h>
@@ -8,12 +13,13 @@
 #include <cctype>
 #include <fstream>
 #include <sstream>
+#include <filesystem>
 #include <string>
 #include <vector>
 
 #include "arc/log.h"
 
-namespace arc {
+namespace arc::config {
 
 static std::string to_lower(std::string s) {
     std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
@@ -75,7 +81,12 @@ static Config::Trigger trigger_from_str(const std::string &name) {
     return Config::Trigger::Left;
 }
 
-Config load_config(const std::string &path) {
+/**
+ * Loads configuration from a UTF-8 path.
+ * Lines are parsed as key=value with case-insensitive keys. Unknown keys are ignored.
+ * Missing or invalid files return defaults.
+ */
+Config load(const std::filesystem::path &path) {
     Config cfg;
     std::ifstream f(path);
     if (!f.is_open()) {
@@ -141,23 +152,22 @@ Config load_config(const std::string &path) {
     return cfg;
 }
 
-static std::string get_exe_dir() {
+static std::filesystem::path get_exe_dir() {
     wchar_t buf[MAX_PATH];
     DWORD len = GetModuleFileNameW(nullptr, buf, MAX_PATH);
-    std::wstring path(buf, (len > 0 ? len : 0));
-    size_t pos = path.find_last_of(L"\\/");
-    std::wstring dir = (pos == std::wstring::npos) ? L"." : path.substr(0, pos);
-    int bytes = WideCharToMultiByte(CP_UTF8, 0, dir.c_str(), -1, nullptr, 0, nullptr, nullptr);
-    std::string out(bytes > 0 ? bytes - 1 : 0, '\0');
-    if (bytes > 0)
-        WideCharToMultiByte(CP_UTF8, 0, dir.c_str(), -1, out.data(), bytes, nullptr, nullptr);
-    return out;
+    std::wstring wpath(buf, (len > 0 ? len : 0));
+    size_t pos = wpath.find_last_of(L"\\/");
+    std::wstring wdir = (pos == std::wstring::npos) ? L"." : wpath.substr(0, pos);
+    return std::filesystem::path(wdir);
 }
 
-std::string default_config_path() {
+/**
+ * Computes default config path: prefers <exe_dir>\\config.ini, otherwise
+ * %APPDATA%\\altrightclick\\config.ini.
+ */
+std::filesystem::path default_path() {
     // Prefer exe_dir\\config.ini
-    std::string exe_dir = get_exe_dir();
-    std::string local = exe_dir + "\\config.ini";
+    std::filesystem::path local = get_exe_dir() / "config.ini";
     std::ifstream f(local);
     if (f.good())
         return local;
@@ -167,28 +177,24 @@ std::string default_config_path() {
     if (SUCCEEDED(SHGetKnownFolderPath(FOLDERID_RoamingAppData, 0, nullptr, &appdataW))) {
         std::wstring wpath = std::wstring(appdataW) + L"\\altrightclick\\config.ini";
         CoTaskMemFree(appdataW);
-        int bytes = WideCharToMultiByte(CP_UTF8, 0, wpath.c_str(), -1, nullptr, 0, nullptr, nullptr);
-        std::string out(bytes > 0 ? bytes - 1 : 0, '\0');
-        if (bytes > 0)
-            WideCharToMultiByte(CP_UTF8, 0, wpath.c_str(), -1, out.data(), bytes, nullptr, nullptr);
-        return out;
+        return std::filesystem::path(wpath);
     } else {
-        arc::log_warn("SHGetKnownFolderPath failed; using local config path");
+        arc::log::warn("SHGetKnownFolderPath failed; using local config path");
     }
     return local;  // fallback
 }
 
-bool save_config(const std::string &path, const Config &cfg) {
+/**
+ * Writes configuration to disk, creating parent directory if needed.
+ *
+ * @param path Destination UTF-8 path.
+ * @param cfg  Configuration to write.
+ * @return true on success.
+ */
+bool save(const std::filesystem::path &path, const Config &cfg) {
     // Ensure parent directory exists
-    int n = MultiByteToWideChar(CP_UTF8, 0, path.c_str(), -1, nullptr, 0);
-    std::wstring wp(n ? n - 1 : 0, L'\0');
-    if (n)
-        MultiByteToWideChar(CP_UTF8, 0, path.c_str(), -1, wp.data(), n);
-    size_t pos = wp.find_last_of(L"\\/");
-    if (pos != std::wstring::npos) {
-        std::wstring dir = wp.substr(0, pos);
-        SHCreateDirectoryExW(nullptr, dir.c_str(), nullptr);
-    }
+    std::error_code ec;
+    std::filesystem::create_directories(path.parent_path(), ec);
 
     std::ofstream out(path, std::ios::trunc);
     if (!out.is_open()) {
@@ -270,4 +276,4 @@ bool save_config(const std::string &path, const Config &cfg) {
     return out.good();
 }
 
-}  // namespace arc
+}  // namespace arc::config

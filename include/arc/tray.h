@@ -1,30 +1,77 @@
+/**
+ * @file tray.h
+ * @brief System tray integration and worker thread API.
+ *
+ * Exposes a small API to create and manage a notification area (system tray)
+ * icon on Windows. The tray UI is hosted on a dedicated thread with its own
+ * window/message loop so the main controller thread remains responsive.
+ */
+/**
+ * @file tray.h
+ * @brief System tray integration and worker thread API.
+ *
+ * Exposes a small API to create and manage a notification area (system tray)
+ * icon on Windows. The tray UI is hosted on a dedicated thread with its own
+ * window/message loop so the main controller thread remains responsive.
+ */
 #pragma once
 
 #include <windows.h>
 #include <string>
+#include <atomic>
+#include <filesystem>
 
-namespace arc {
+namespace arc { namespace config { struct Config; } }
+namespace arc { namespace tray {
 
-struct Config;  // fwd decl
-
+/**
+ * @brief Live context passed to the tray worker.
+ *
+ * Holds references to lifetime-managed state owned by the main controller.
+ */
 struct TrayContext {
-    // Live pointers; owner must outlive the tray window
-    Config *cfg;
-    std::string *config_path;
+    /** Active runtime configuration to reflect and mutate from the tray. */
+    arc::config::Config &cfg;
+    /** Config file path for Save/Open actions. */
+    const std::filesystem::path &config_path;
+    /** Stop signal; set to true when user clicks Exit in the tray. */
+    std::atomic<bool> &exit_requested;
 };
 
-// Initializes a system tray icon. Returns a hidden window handle that owns the tray icon.
-// The window will handle basic messages and allow graceful shutdown via tray menu (Exit).
-HWND tray_init(HINSTANCE hInstance, const std::wstring &tooltip, TrayContext *ctx);
+/**
+ * @brief Initializes a hidden tray window and adds the tray icon.
+ *
+ * @param hInstance Module handle.
+ * @param tooltip   Tooltip text for the tray icon.
+ * @param ctx       Optional live context (stored in window user-data).
+ * @return HWND of the hidden tray window owning the icon, or nullptr on error.
+ */
+HWND init(HINSTANCE hInstance, const std::wstring &tooltip, TrayContext *ctx);
 
-// Run tray window in its own thread (returns immediately). Call tray_cleanup via stop_tray_worker.
-bool start_tray_worker(const std::wstring &tooltip, TrayContext *ctx);
-void stop_tray_worker();
+/**
+ * @brief Starts the tray worker thread.
+ *
+ * Spawns a new thread, creates the tray window/icon and pumps a private message
+ * loop until @ref stop posts WM_QUIT. Returns immediately.
+ */
+bool start(const std::wstring &tooltip, TrayContext *ctx);
 
-// Show a brief information balloon from the tray icon (no-op if tray not initialized)
-void tray_notify(const std::wstring &title, const std::wstring &message);
+/**
+ * @brief Requests tray worker shutdown and joins the thread.
+ */
+void stop();
 
-// Removes the tray icon and destroys the hidden window.
-void tray_cleanup(HWND hwnd);
+/**
+ * @brief Shows a brief notification balloon from the tray icon.
+ * @note No-op if the tray icon has not been initialized.
+ */
+void notify(const std::wstring &title, const std::wstring &message);
+
+/**
+ * @brief Removes the tray icon and destroys the hidden window.
+ */
+void cleanup(HWND hwnd);
+
+}  // namespace tray
 
 }  // namespace arc

@@ -91,3 +91,23 @@ if (BUILD_TESTING)
   target_link_libraries(config_edge_test PRIVATE user32 shell32 advapi32 ole32)
   add_test(NAME config_edge_test COMMAND config_edge_test)
 endif()
+
+# -----------------------------
+# Doxygen docs (optional)
+# -----------------------------
+find_package(Doxygen QUIET)
+if (DOXYGEN_FOUND)
+  # Allow version substitution in Doxyfile via CMake configure
+  set(ALTRIGHTCLICK_VERSION ${PROJECT_VERSION})
+  # We keep a plain Doxyfile that uses @ALTRIGHTCLICK_VERSION@ token; replace it here.
+  file(READ ${CMAKE_SOURCE_DIR}/docs/Doxyfile DOXY_IN)
+  string(REPLACE "@ALTRIGHTCLICK_VERSION@" "${ALTRIGHTCLICK_VERSION}" DOXY_CFG "${DOXY_IN}")
+  file(WRITE ${CMAKE_BINARY_DIR}/Doxyfile "${DOXY_CFG}")
+  add_custom_target(docs
+    COMMAND ${DOXYGEN_EXECUTABLE} ${CMAKE_BINARY_DIR}/Doxyfile
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    COMMENT "Generating API documentation with Doxygen"
+    VERBATIM)
+else()
+  message(STATUS "Doxygen not found; 'docs' target will be unavailable.")
+endif()
