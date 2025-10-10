@@ -62,6 +62,16 @@ struct Config {
     /// Enable background persistence monitor to restart the app if it crashes.
     /// Disabled by default. Only applies to interactive mode (not service).
     bool persistence_enabled = false;
+
+    // Persistence tuning (only used when persistence_enabled=true)
+    // Max number of restarts allowed within a rolling window before backing off longer.
+    int persistence_max_restarts = 5;
+    // Rolling window length in seconds for counting restarts.
+    int persistence_window_sec = 60;
+    // Initial backoff in milliseconds between restarts.
+    int persistence_backoff_ms = 1000;
+    // Maximum backoff cap in milliseconds.
+    int persistence_backoff_max_ms = 30000;
 };
 
 /**

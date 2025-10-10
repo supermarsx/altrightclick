@@ -149,6 +149,14 @@ Config load(const std::filesystem::path &path) {
             cfg.watch_config = (vall == "1" || vall == "true" || vall == "yes");
         } else if (key == "persistence" || key == "persistence_enabled") {
             cfg.persistence_enabled = (vall == "1" || vall == "true" || vall == "yes");
+        } else if (key == "persistence_max_restarts") {
+            try { cfg.persistence_max_restarts = std::max(0, std::stoi(vall)); } catch (...) {}
+        } else if (key == "persistence_window_sec") {
+            try { cfg.persistence_window_sec = std::max(1, std::stoi(vall)); } catch (...) {}
+        } else if (key == "persistence_backoff_ms") {
+            try { cfg.persistence_backoff_ms = std::max(0, std::stoi(vall)); } catch (...) {}
+        } else if (key == "persistence_backoff_max_ms") {
+            try { cfg.persistence_backoff_max_ms = std::max(0, std::stoi(vall)); } catch (...) {}
         }
     }
     return cfg;
@@ -276,6 +284,11 @@ bool save(const std::filesystem::path &path, const Config &cfg) {
     out << "watch_config=" << (cfg.watch_config ? "true" : "false") << "\n";
     out << "\n# Restart the app if it crashes (true/false). Applies only to interactive mode.\n";
     out << "persistence=" << (cfg.persistence_enabled ? "true" : "false") << "\n";
+    out << "# Persistence tuning (effective when persistence=true)\n";
+    out << "persistence_max_restarts=" << cfg.persistence_max_restarts << "\n";
+    out << "persistence_window_sec=" << cfg.persistence_window_sec << "\n";
+    out << "persistence_backoff_ms=" << cfg.persistence_backoff_ms << "\n";
+    out << "persistence_backoff_max_ms=" << cfg.persistence_backoff_max_ms << "\n";
     out.flush();
     return out.good();
 }

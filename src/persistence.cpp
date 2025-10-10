@@ -13,6 +13,7 @@
 #include <thread>
 
 #include "arc/log.h"
+#include "arc/config.h"
 
 namespace arc::persistence {
 
@@ -76,15 +77,28 @@ static DWORD spawn_child(const std::wstring &exe_path, const std::wstring &confi
 }
 
 int run_monitor(unsigned long parent_pid, const std::wstring &exe_path, const std::wstring &config_path) {
+    // Load persistence tuning from config if provided
+    int maxRestarts = 5;
+    int windowSec = 60;
+    int backoffMs = 1000;
+    int backoffMaxMs = 30000;
+    if (!config_path.empty()) {
+        std::filesystem::path p(config_path);
+        arc::config::Config cfg = arc::config::load(p);
+        maxRestarts = cfg.persistence_max_restarts;
+        windowSec = cfg.persistence_window_sec;
+        backoffMs = cfg.persistence_backoff_ms;
+        backoffMaxMs = cfg.persistence_backoff_max_ms;
+    }
     // Wait for the parent process to exit
     (void)wait_process(static_cast<DWORD>(parent_pid));
 
     // Restart loop with simple backoff and restart cap
-    const int kMaxRestarts = 5;
-    const auto kWindow = std::chrono::seconds(60);
+    const int kMaxRestarts = maxRestarts;
+    const auto kWindow = std::chrono::seconds(windowSec);
     std::vector<std::chrono::steady_clock::time_point> restarts;
-    std::chrono::milliseconds backoff(1000);
-    const std::chrono::milliseconds backoff_max(30000);
+    std::chrono::milliseconds backoff(backoffMs);
+    const std::chrono::milliseconds backoff_max(backoffMaxMs);
 
     while (true) {
         // Enforce max restarts in window
@@ -124,4 +138,3 @@ int run_monitor(unsigned long parent_pid, const std::wstring &exe_path, const st
 }
 
 }  // namespace arc::persistence
-
