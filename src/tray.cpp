@@ -15,6 +15,7 @@
 #include "arc/config.h"
 #include "arc/hook.h"
 #include "arc/log.h"
+#include "arc/persistence.h"
 
 namespace {
 /// Custom window message used by the tray icon callback.
@@ -39,6 +40,7 @@ enum MenuId : UINT {
     kMenuToggleIgnoreInjected = 104,  ///< Toggle ignore injected events.
     kMenuSaveConfig = 105,          ///< Save settings to config file.
     kMenuOpenConfigFolder = 106,    ///< Open folder containing config file.
+    kMenuTogglePersistence = 107,   ///< Toggle persistence monitor.
 };
 
 /**
@@ -61,6 +63,9 @@ HMENU create_tray_menu(const arc::tray::TrayContext *ctx) {
     std::wstring inj = L"Ignore Injected: ";
     inj += (ctx && ctx->cfg.ignore_injected) ? L"ON" : L"OFF";
     AppendMenuW(menu, MF_STRING, kMenuToggleIgnoreInjected, inj.c_str());
+    std::wstring per = L"Persistence Monitor: ";
+    per += (ctx && ctx->cfg.persistence_enabled) ? L"ON" : L"OFF";
+    AppendMenuW(menu, MF_STRING, kMenuTogglePersistence, per.c_str());
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
     AppendMenuW(menu, MF_STRING, kMenuSaveConfig, L"Save Settings");
     AppendMenuW(menu, MF_STRING, kMenuOpenConfigFolder, L"Open Config Folder");
@@ -83,6 +88,13 @@ static std::wstring dir_of(const std::wstring &path) {
     if (pos == std::wstring::npos)
         return path;
     return path.substr(0, pos);
+}
+
+/** Returns the full path of the current executable. */
+static std::wstring get_module_path() {
+    wchar_t buf[MAX_PATH];
+    GetModuleFileNameW(nullptr, buf, MAX_PATH);
+    return std::wstring(buf);
 }
 
 /** Hidden tray window procedure handling icon/menu interactions. */
@@ -137,6 +149,20 @@ LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
                     ctx->cfg.ignore_injected = !ctx->cfg.ignore_injected;
                     arc::hook::apply_hook_config(ctx->cfg);
                     break;
+                case kMenuTogglePersistence: {
+                    bool was = ctx->cfg.persistence_enabled;
+                    ctx->cfg.persistence_enabled = !ctx->cfg.persistence_enabled;
+                    if (!was && ctx->cfg.persistence_enabled) {
+                        // Spawn monitor now so it can restart us if we crash later
+                        std::wstring exe = get_module_path();
+                        std::string cfgPath = ctx->config_path.u8string();
+                        arc::persistence::spawn_monitor(exe, cfgPath);
+                        arc::tray::notify(L"altrightclick", L"Persistence monitor enabled");
+                    } else if (was && !ctx->cfg.persistence_enabled) {
+                        arc::tray::notify(L"altrightclick", L"Persistence monitor disabled (takes effect for next start)");
+                    }
+                    break;
+                }
                 case kMenuSaveConfig:
                     if (!ctx->config_path.empty()) {
                         arc::config::save(ctx->config_path, ctx->cfg);
