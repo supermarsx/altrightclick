@@ -1,16 +1,16 @@
 {
-  "version": "0.1.0",
+  "version": "0.1.25.10.10",
   "description": "Alt+Left Click -> Right Click helper for Windows (low-level mouse hook)",
   "homepage": "https://github.com/supermarsx/altrightclick",
   "license": "MIT",
   "architecture": {
     "64bit": {
-      "url": "https://github.com/supermarsx/altrightclick/releases/download/v0.1.0/altrightclick-windows-x64.zip",
+      "url": "https://github.com/supermarsx/altrightclick/releases/download/v0.1.25.10.10/altrightclick-windows-x64.zip",
       "hash": "80d5310c6b2e3a736259f5ab77b47220707c9b2f49b4b977d107d8b9c84c67ca",
       "extract_dir": "."
     },
     "arm64": {
-      "url": "https://github.com/supermarsx/altrightclick/releases/download/v0.1.0/altrightclick-windows-arm64.zip",
+      "url": "https://github.com/supermarsx/altrightclick/releases/download/v0.1.25.10.10/altrightclick-windows-arm64.zip",
       "hash": "61a7acb8f285ca33a69b37989cb64aa6da53644e3a5882ba75060538afa1f856",
       "extract_dir": "."
     }
