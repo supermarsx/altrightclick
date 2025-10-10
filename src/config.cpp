@@ -157,6 +157,8 @@ Config load(const std::filesystem::path &path) {
             try { cfg.persistence_backoff_ms = std::max(0, std::stoi(vall)); } catch (...) {}
         } else if (key == "persistence_backoff_max_ms") {
             try { cfg.persistence_backoff_max_ms = std::max(0, std::stoi(vall)); } catch (...) {}
+        } else if (key == "persistence_stop_timeout_ms") {
+            try { cfg.persistence_stop_timeout_ms = std::max(0, std::stoi(vall)); } catch (...) {}
         }
     }
     return cfg;
@@ -289,6 +291,7 @@ bool save(const std::filesystem::path &path, const Config &cfg) {
     out << "persistence_window_sec=" << cfg.persistence_window_sec << "\n";
     out << "persistence_backoff_ms=" << cfg.persistence_backoff_ms << "\n";
     out << "persistence_backoff_max_ms=" << cfg.persistence_backoff_max_ms << "\n";
+    out << "persistence_stop_timeout_ms=" << cfg.persistence_stop_timeout_ms << "\n";
     out.flush();
     return out.good();
 }

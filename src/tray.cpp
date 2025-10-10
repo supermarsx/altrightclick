@@ -64,7 +64,10 @@ HMENU create_tray_menu(const arc::tray::TrayContext *ctx) {
     inj += (ctx && ctx->cfg.ignore_injected) ? L"ON" : L"OFF";
     AppendMenuW(menu, MF_STRING, kMenuToggleIgnoreInjected, inj.c_str());
     std::wstring per = L"Persistence Monitor: ";
-    per += (ctx && ctx->cfg.persistence_enabled) ? L"ON" : L"OFF";
+    bool enabled = (ctx && ctx->cfg.persistence_enabled);
+    per += enabled ? L"ON" : L"OFF";
+    bool running = arc::persistence::is_monitor_running();
+    per += running ? L" (running)" : L" (stopped)";
     AppendMenuW(menu, MF_STRING, kMenuTogglePersistence, per.c_str());
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
     AppendMenuW(menu, MF_STRING, kMenuSaveConfig, L"Save Settings");
@@ -159,7 +162,8 @@ LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
                         arc::persistence::spawn_monitor(exe, cfgPath);
                         arc::tray::notify(L"altrightclick", L"Persistence monitor enabled");
                     } else if (was && !ctx->cfg.persistence_enabled) {
-                        bool stopped = arc::persistence::stop_monitor_graceful(3000);
+                        unsigned int to = static_cast<unsigned int>(ctx->cfg.persistence_stop_timeout_ms);
+                        bool stopped = arc::persistence::stop_monitor_graceful(to);
                         arc::tray::notify(L"altrightclick", stopped ? L"Persistence monitor stopped" : L"No monitor running");
                     }
                     break;

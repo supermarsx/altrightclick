@@ -101,6 +101,7 @@ Keys (case-insensitive):
     - `persistence_window_sec=<int>` (default: 60)
     - `persistence_backoff_ms=<int>` (default: 1000)
     - `persistence_backoff_max_ms=<int>` (default: 30000)
+    - `persistence_stop_timeout_ms=<int>` (default: 3000) — graceful monitor stop timeout before force kill
 
 Example: see `config.example.ini:1`.
 

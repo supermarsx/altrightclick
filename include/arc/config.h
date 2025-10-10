@@ -72,6 +72,9 @@ struct Config {
     int persistence_backoff_ms = 1000;
     // Maximum backoff cap in milliseconds.
     int persistence_backoff_max_ms = 30000;
+
+    // Timeout in milliseconds for graceful monitor stop before force-terminating.
+    int persistence_stop_timeout_ms = 3000;
 };
 
 /**
