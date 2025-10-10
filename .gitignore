@@ -1,0 +1,64 @@
+# OS junk
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Editors/IDEs
+.vscode/
+.idea/
+*.code-workspace
+.vs/
+
+# Visual Studio/CMake generated
+*.sln
+*.vcxproj
+*.vcxproj.filters
+*.vcxproj.user
+*.suo
+*.user
+*.opendb
+*.VC.db
+*.VC.opendb
+build/
+x64/
+arm64/
+Debug/
+Release/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+CTestTestfile.cmake
+DartConfiguration.tcl
+Testing/
+CTestCustom.cmake
+compile_commands.json
+
+# Binaries and objects
+*.exe
+*.dll
+*.lib
+*.exp
+*.obj
+*.pdb
+*.ilk
+*.iobj
+*.ipdb
+*.tlog/
+
+# Logs and temp
+*.log
+error.log
+config_*.ini
+cpplint.out
+
+# Coverage artifacts
+coverage.xml
+badges/coverage.svg
+
+# Python
+__pycache__/
+*.pyc
+
+# Doxygen (if generated locally)
+docs/html/
+docs/latex/

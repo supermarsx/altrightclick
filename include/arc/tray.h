@@ -6,14 +6,6 @@
  * icon on Windows. The tray UI is hosted on a dedicated thread with its own
  * window/message loop so the main controller thread remains responsive.
  */
-/**
- * @file tray.h
- * @brief System tray integration and worker thread API.
- *
- * Exposes a small API to create and manage a notification area (system tray)
- * icon on Windows. The tray UI is hosted on a dedicated thread with its own
- * window/message loop so the main controller thread remains responsive.
- */
 #pragma once
 
 #include <windows.h>

@@ -30,15 +30,15 @@ static DWORD g_trayThreadId = 0;
  * @brief Command identifiers for the tray popup menu.
  */
 enum MenuId : UINT {
-    kMenuExit = 1,                 ///< Exit application.
-    kMenuToggleEnabled = 50,       ///< Toggle enable/disable.
-    kMenuClickTimeInc = 100,       ///< Increase click time.
-    kMenuClickTimeDec = 101,       ///< Decrease click time.
-    kMenuMoveRadiusInc = 102,      ///< Increase movement radius.
-    kMenuMoveRadiusDec = 103,      ///< Decrease movement radius.
-    kMenuToggleIgnoreInjected = 104, ///< Toggle ignore injected events.
-    kMenuSaveConfig = 105,         ///< Save settings to config file.
-    kMenuOpenConfigFolder = 106,   ///< Open folder containing config file.
+    kMenuExit = 1,                  ///< Exit application.
+    kMenuToggleEnabled = 50,        ///< Toggle enable/disable.
+    kMenuClickTimeInc = 100,        ///< Increase click time.
+    kMenuClickTimeDec = 101,        ///< Decrease click time.
+    kMenuMoveRadiusInc = 102,       ///< Increase movement radius.
+    kMenuMoveRadiusDec = 103,       ///< Decrease movement radius.
+    kMenuToggleIgnoreInjected = 104,  ///< Toggle ignore injected events.
+    kMenuSaveConfig = 105,          ///< Save settings to config file.
+    kMenuOpenConfigFolder = 106,    ///< Open folder containing config file.
 };
 
 /**
@@ -259,4 +259,3 @@ void notify(const std::wstring &title, const std::wstring &message) {
 }
 
 }  // namespace arc::tray
-

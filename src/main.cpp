@@ -3,6 +3,13 @@
  * @brief Main controller for interactive app and CLI/service management.
  */
 
+#include <iostream>
+#include <fstream>
+#include <string>
+#include <thread>
+#include <atomic>
+#include <filesystem>
+
 #include "arc/hook.h"
 #include "arc/tray.h"
 #include "arc/config.h"
@@ -11,13 +18,6 @@
 #include "arc/task.h"
 #include "arc/log.h"
 #include "altrightclick/version.h"
-
-#include <iostream>
-#include <fstream>
-#include <string>
-#include <thread>
-#include <atomic>
-#include <filesystem>
 
 /** Converts a UTF-8 string to UTF-16 (Windows wide). */
 static std::wstring to_w(const std::string &s) {
@@ -298,7 +298,7 @@ int main(int argc, char **argv) {
                     if (!newCfg.log_file.empty())
                         arc::log::set_file(newCfg.log_file);
                     arc::hook::apply_hook_config(newCfg);
-                    *trayCtx.cfg = newCfg;
+                    trayCtx.cfg = newCfg;
                     arc::tray::notify(L"altrightclick", L"Configuration reloaded");
                     arc::log::info("Configuration reloaded");
                 }
@@ -325,4 +325,3 @@ int main(int argc, char **argv) {
     arc::log::stop_async();
     return 0;
 }
-

@@ -22,7 +22,7 @@ namespace arc { namespace singleton {
  * ownership and @ref acquired returns false.
  */
 class SingletonGuard {
-public:
+ public:
     /**
      * @brief Creates/opens a named mutex and tries to acquire singleton ownership.
      *
@@ -42,7 +42,7 @@ public:
      */
     bool acquired() const { return acquired_; }
 
-private:
+ private:
     HANDLE handle_ = nullptr;   ///< OS handle to the named mutex (or nullptr on failure).
     bool acquired_ = false;     ///< True if this process owns the singleton.
 };

@@ -6,6 +6,10 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+include(CheckIncludeFileCXX)
+check_include_file_cxx("windows.h" HAVE_WINDOWS_H)
+check_include_file_cxx("filesystem" HAVE_FILESYSTEM)
+
 # Generate version header
 set(VERSION_HEADER_DIR "${CMAKE_BINARY_DIR}/generated")
 file(MAKE_DIRECTORY "${VERSION_HEADER_DIR}/altrightclick")
@@ -52,6 +56,11 @@ endif()
 
 # Windows libraries
 target_link_libraries(altrightclick PRIVATE user32 shell32 advapi32 ole32)
+
+# Windows toolchain required
+if(NOT HAVE_WINDOWS_H)
+  message(FATAL_ERROR "windows.h not found; please configure with a Windows toolchain.")
+endif()
 
 # Set subsystem to console for CLI/service management
 if (MSVC)
