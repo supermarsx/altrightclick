@@ -13,6 +13,7 @@
 #include "arc/hook.h"
 #include "arc/tray.h"
 #include "arc/config.h"
+#include "arc/persistence.h"
 #include "arc/service.h"
 #include "arc/singleton.h"
 #include "arc/task.h"
@@ -122,6 +123,8 @@ int main(int argc, char **argv) {
     // Parse args
     bool do_install = false, do_uninstall = false, do_start = false, do_stop = false, do_service_status = false,
          run_as_service = false;
+    bool run_as_monitor = false;
+    unsigned long monitor_parent_pid = 0;
     bool do_task_install = false, do_task_uninstall = false, do_task_update = false, do_task_status = false;
     std::string cli_log_level;
     std::string cli_log_file;
@@ -156,10 +159,20 @@ int main(int argc, char **argv) {
             do_task_update = true;
         } else if (a == "--task-status") {
             do_task_status = true;
+        } else if (a == "--monitor") {
+            run_as_monitor = true;
+        } else if (a == "--parent" && i + 1 < argc) {
+            try { monitor_parent_pid = static_cast<unsigned long>(std::stoul(argv[++i])); } catch (...) { monitor_parent_pid = 0; }
         } else if (a == "--help" || a == "-h" || a == "-?") {
             print_help();
             return 0;
         }
+    }
+
+    // Monitor mode: run persistence monitor and exit
+    if (run_as_monitor) {
+        std::wstring exe = get_module_path();
+        return arc::persistence::run_monitor(monitor_parent_pid, exe, to_w(config_path));
     }
 
     const std::wstring svcName = L"AltRightClickService";
@@ -279,6 +292,11 @@ int main(int argc, char **argv) {
     if (!arc::hook::start()) {
         arc::log::error("Failed to start hook worker");
         return 1;
+    }
+    // Optionally start persistence monitor (detached process) to revive the app if it crashes
+    if (cfg.persistence_enabled) {
+        std::wstring exe = get_module_path();
+        arc::persistence::spawn_monitor(exe, config_path);
     }
     std::atomic<bool> exitRequested{false};
     std::filesystem::path config_path_fs = std::filesystem::path(config_path);

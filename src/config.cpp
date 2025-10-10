@@ -147,6 +147,8 @@ Config load(const std::filesystem::path &path) {
             cfg.log_file = val;  // keep original as path
         } else if (key == "watch_config") {
             cfg.watch_config = (vall == "1" || vall == "true" || vall == "yes");
+        } else if (key == "persistence" || key == "persistence_enabled") {
+            cfg.persistence_enabled = (vall == "1" || vall == "true" || vall == "yes");
         }
     }
     return cfg;
@@ -272,6 +274,8 @@ bool save(const std::filesystem::path &path, const Config &cfg) {
     }
     out << "\n# Live reload the config file on changes (true/false)\n";
     out << "watch_config=" << (cfg.watch_config ? "true" : "false") << "\n";
+    out << "\n# Restart the app if it crashes (true/false). Applies only to interactive mode.\n";
+    out << "persistence=" << (cfg.persistence_enabled ? "true" : "false") << "\n";
     out.flush();
     return out.good();
 }

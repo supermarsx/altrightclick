@@ -58,6 +58,10 @@ struct Config {
 
     /// Live reload toggle for config file changes.
     bool watch_config = false;
+
+    /// Enable background persistence monitor to restart the app if it crashes.
+    /// Disabled by default. Only applies to interactive mode (not service).
+    bool persistence_enabled = false;
 };
 
 /**

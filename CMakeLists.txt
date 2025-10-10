@@ -38,6 +38,7 @@ set(SRC
     src/app.cpp
     src/hook.cpp
     src/config.cpp
+    src/persistence.cpp
     src/tray.cpp
     src/service.cpp
     src/task.cpp
