@@ -109,6 +109,8 @@ static void print_help() {
                  "  --stop                 Stop Windows service\n"
                  "  --service-status       Check if service is running\n"
                  "  --service              Run as service (internal)\n"
+                 "  --persistence-enable   Enable persistence monitor for this run (overrides config)\n"
+                 "  --persistence-disable  Disable persistence monitor for this run (overrides config)\n"
                  "  --task-install         Install Scheduled Task (on logon, highest privs)\n"
                  "  --task-uninstall       Uninstall Scheduled Task\n"
                  "  --task-update          Update Scheduled Task target/args\n"
@@ -129,6 +131,7 @@ int main(int argc, char **argv) {
     std::string cli_log_level;
     std::string cli_log_file;
     bool do_generate_config = false;
+    int cli_persistence = -1;  // -1: no override, 0: disable, 1: enable
     for (int i = 1; i < argc; ++i) {
         std::string a = argv[i];
         if (a == "--config" && i + 1 < argc) {
@@ -151,6 +154,10 @@ int main(int argc, char **argv) {
             do_service_status = true;
         } else if (a == "--service") {
             run_as_service = true;
+        } else if (a == "--persistence-enable") {
+            cli_persistence = 1;
+        } else if (a == "--persistence-disable" || a == "--no-persistence") {
+            cli_persistence = 0;
         } else if (a == "--task-install") {
             do_task_install = true;
         } else if (a == "--task-uninstall") {
@@ -275,6 +282,8 @@ int main(int argc, char **argv) {
         cfg.log_level = cli_log_level;
     if (!cli_log_file.empty())
         cfg.log_file = cli_log_file;
+    if (cli_persistence != -1)
+        cfg.persistence_enabled = (cli_persistence == 1);
     arc::log::set_level_by_name(cfg.log_level);
     if (!cfg.log_file.empty())
         arc::log::set_file(cfg.log_file);

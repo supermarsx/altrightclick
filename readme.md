@@ -62,6 +62,8 @@ Notes:
 - `--stop`: stop the Windows service
 - `--service-status`: print `RUNNING` or `STOPPED` and set exit code
 - `--service`: internal; run service mode (invoked by the SCM)
+- `--persistence-enable`: enable crash-restart monitor for this run (overrides config)
+- `--persistence-disable` (alias: `--no-persistence`): disable the monitor for this run (overrides config)
 - `--task-install`: create a Scheduled Task to run at user logon (highest privileges)
 - `--task-uninstall`: remove the Scheduled Task
 - `--task-update`: update the Scheduled Task target/args
@@ -92,8 +94,13 @@ Keys (case-insensitive):
 - `move_radius_px=<int>` (default: 6) — max pointer movement radius to still translate as click
 - `log_level=error|warn|info|debug` (default: info)
 - `log_file=<path>` (default: empty; console only)
- - `trigger=LEFT|MIDDLE|X1|X2` (default: LEFT) — source button to translate
- - `watch_config=true|false` (default: false) — live reload config when the file changes
+ - `trigger=LEFT|MIDDLE|X1|X2` (default: LEFT) - source button to translate
+ - `watch_config=true|false` (default: false) - live reload config when the file changes
+  - `persistence=true|false` (default: false) — restart the app if it crashes (interactive mode only)
+    - `persistence_max_restarts=<int>` (default: 5)
+    - `persistence_window_sec=<int>` (default: 60)
+    - `persistence_backoff_ms=<int>` (default: 1000)
+    - `persistence_backoff_max_ms=<int>` (default: 30000)
 
 Example: see `config.example.ini:1`.
 
