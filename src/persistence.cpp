@@ -19,6 +19,8 @@
 
 namespace arc::persistence {
 
+static std::atomic<DWORD> g_monitorPid{0};
+
 static std::wstring quote_if_needed(const std::wstring &s) {
     if (s.find(L' ') != std::wstring::npos)
         return L"\"" + s + L"\"";
@@ -43,10 +45,42 @@ bool spawn_monitor(const std::wstring &exe_path, const std::string &config_path)
         arc::log::warn("persistence: failed to spawn monitor: " + arc::log::last_error_message(GetLastError()));
         return false;
     }
+    g_monitorPid.store(pi.dwProcessId);
     CloseHandle(pi.hThread);
     CloseHandle(pi.hProcess);
     arc::log::info("persistence: monitor started");
     return true;
+}
+
+bool is_monitor_running() {
+    DWORD pid = g_monitorPid.load();
+    if (!pid)
+        return false;
+    HANDLE h = OpenProcess(SYNCHRONIZE, FALSE, pid);
+    if (!h)
+        return false;
+    DWORD code = 0;
+    bool running = false;
+    if (GetExitCodeProcess(h, &code)) {
+        running = (code == STILL_ACTIVE);
+    }
+    CloseHandle(h);
+    if (!running) g_monitorPid.store(0);
+    return running;
+}
+
+bool stop_monitor() {
+    DWORD pid = g_monitorPid.load();
+    if (!pid)
+        return true;
+    HANDLE h = OpenProcess(PROCESS_TERMINATE, FALSE, pid);
+    if (!h)
+        return false;
+    BOOL ok = TerminateProcess(h, 0);
+    CloseHandle(h);
+    if (ok)
+        g_monitorPid.store(0);
+    return ok != 0;
 }
 
 static DWORD wait_process(DWORD pid) {
@@ -60,7 +94,7 @@ static DWORD wait_process(DWORD pid) {
 }
 
 static DWORD spawn_child(const std::wstring &exe_path, const std::wstring &config_path, PROCESS_INFORMATION *out_pi) {
-    std::wstring cmd = quote_if_needed(exe_path);
+    std::wstring cmd = quote_if_needed(exe_path) + L" --launched-by-monitor";
     if (!config_path.empty()) {
         cmd += L" --config \"" + config_path + L"\"";
     }

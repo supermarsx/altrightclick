@@ -111,6 +111,7 @@ static void print_help() {
                  "  --service              Run as service (internal)\n"
                  "  --persistence-enable   Enable persistence monitor for this run (overrides config)\n"
                  "  --persistence-disable  Disable persistence monitor for this run (overrides config)\n"
+                 "  --launched-by-monitor  Internal; suppress spawning a nested monitor when revived\n"
                  "  --task-install         Install Scheduled Task (on logon, highest privs)\n"
                  "  --task-uninstall       Uninstall Scheduled Task\n"
                  "  --task-update          Update Scheduled Task target/args\n"
@@ -126,6 +127,7 @@ int main(int argc, char **argv) {
     bool do_install = false, do_uninstall = false, do_start = false, do_stop = false, do_service_status = false,
          run_as_service = false;
     bool run_as_monitor = false;
+    bool launched_by_monitor = false;
     unsigned long monitor_parent_pid = 0;
     bool do_task_install = false, do_task_uninstall = false, do_task_update = false, do_task_status = false;
     std::string cli_log_level;
@@ -158,6 +160,8 @@ int main(int argc, char **argv) {
             cli_persistence = 1;
         } else if (a == "--persistence-disable" || a == "--no-persistence") {
             cli_persistence = 0;
+        } else if (a == "--launched-by-monitor") {
+            launched_by_monitor = true;
         } else if (a == "--task-install") {
             do_task_install = true;
         } else if (a == "--task-uninstall") {
@@ -303,7 +307,7 @@ int main(int argc, char **argv) {
         return 1;
     }
     // Optionally start persistence monitor (detached process) to revive the app if it crashes
-    if (cfg.persistence_enabled) {
+    if (cfg.persistence_enabled && !launched_by_monitor) {
         std::wstring exe = get_module_path();
         arc::persistence::spawn_monitor(exe, config_path);
     }

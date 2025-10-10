@@ -159,7 +159,8 @@ LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
                         arc::persistence::spawn_monitor(exe, cfgPath);
                         arc::tray::notify(L"altrightclick", L"Persistence monitor enabled");
                     } else if (was && !ctx->cfg.persistence_enabled) {
-                        arc::tray::notify(L"altrightclick", L"Persistence monitor disabled (takes effect for next start)");
+                        bool stopped = arc::persistence::stop_monitor();
+                        arc::tray::notify(L"altrightclick", stopped ? L"Persistence monitor stopped" : L"No monitor running");
                     }
                     break;
                 }

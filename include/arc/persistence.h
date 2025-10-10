@@ -48,6 +48,12 @@ std::wstring intent_marker_path();
  */
 void write_intent_marker();
 
+/** Returns true if a monitor process is known to be running. */
+bool is_monitor_running();
+
+/** Attempts to stop the monitor process if running. */
+bool stop_monitor();
+
 }  // namespace persistence
 
 }  // namespace arc
