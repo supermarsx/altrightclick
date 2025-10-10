@@ -35,6 +35,25 @@ static std::wstring get_module_path() {
     return std::wstring(buf);
 }
 
+// Global shutdown flag toggled by console control events (Ctrl+C, close, etc.).
+static std::atomic<bool> g_console_shutdown{false};
+
+// Console control handler to request graceful shutdown.
+static BOOL WINAPI console_ctrl_handler(DWORD ctrl_type) {
+    switch (ctrl_type) {
+    case CTRL_C_EVENT:
+    case CTRL_BREAK_EVENT:
+    case CTRL_CLOSE_EVENT:
+    case CTRL_LOGOFF_EVENT:
+    case CTRL_SHUTDOWN_EVENT:
+        g_console_shutdown.store(true);
+        return TRUE;  // handled
+    default:
+        break;
+    }
+    return FALSE;
+}
+
 /** Returns true if a wide-path file exists. */
 static bool file_exists_w(const std::wstring &path) {
     DWORD attrs = GetFileAttributesW(path.c_str());
@@ -235,6 +254,9 @@ int main(int argc, char **argv) {
             arc::config::save(config_path, defaults);
         }
     }
+    // Install console control handler early so Ctrl+C/close triggers clean exit.
+    SetConsoleCtrlHandler(console_ctrl_handler, TRUE);
+
     arc::config::Config cfg = arc::config::load(config_path);
     if (!cli_log_level.empty())
         cfg.log_level = cli_log_level;
@@ -311,6 +333,8 @@ int main(int argc, char **argv) {
     arc::log::info("Alt + Left Click => Right Click. Press exit key to quit.");
     while (true) {
         if (exitRequested.load())
+            break;
+        if (g_console_shutdown.load())
             break;
         if (cfg.exit_vk && (GetAsyncKeyState(static_cast<int>(cfg.exit_vk)) & 0x8000))
             break;

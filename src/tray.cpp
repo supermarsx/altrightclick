@@ -88,6 +88,15 @@ static std::wstring dir_of(const std::wstring &path) {
 /** Hidden tray window procedure handling icon/menu interactions. */
 LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     switch (msg) {
+    case WM_QUERYENDSESSION:
+    case WM_ENDSESSION: {
+        auto *ctx = reinterpret_cast<arc::tray::TrayContext *>(GetWindowLongPtr(hwnd, GWLP_USERDATA));
+        if (ctx) {
+            ctx->exit_requested.store(true);
+        }
+        PostQuitMessage(0);
+        return TRUE;
+    }
     case WM_TRAYICON: {
         if (lParam == WM_RBUTTONUP || lParam == WM_CONTEXTMENU) {
             POINT pt;
