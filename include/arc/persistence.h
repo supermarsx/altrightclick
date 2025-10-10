@@ -52,7 +52,9 @@ void write_intent_marker();
 bool is_monitor_running();
 
 /** Attempts to stop the monitor process if running. */
-bool stop_monitor();
+// Gracefully stop monitor by signaling a named event; if it does not exit
+// within timeout_ms, fall back to forceful termination. Returns true on success.
+bool stop_monitor_graceful(unsigned int timeout_ms = 3000);
 
 }  // namespace persistence
 

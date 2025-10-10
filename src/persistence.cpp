@@ -13,6 +13,7 @@
 #include <vector>
 #include <chrono>
 #include <thread>
+#include <atomic>
 
 #include "arc/log.h"
 #include "arc/config.h"
@@ -20,6 +21,10 @@
 namespace arc::persistence {
 
 static std::atomic<DWORD> g_monitorPid{0};
+
+static std::wstring stop_event_name(DWORD parentPid) {
+    return L"Local\\altrightclick_stop_" + std::to_wstring(parentPid);
+}
 
 static std::wstring quote_if_needed(const std::wstring &s) {
     if (s.find(L' ') != std::wstring::npos)
@@ -69,17 +74,29 @@ bool is_monitor_running() {
     return running;
 }
 
-bool stop_monitor() {
+bool stop_monitor_graceful(unsigned int timeout_ms) {
     DWORD pid = g_monitorPid.load();
+    // Signal stop event named by current process id (parent id used by monitor)
+    HANDLE hEvt = CreateEventW(nullptr, TRUE, FALSE, stop_event_name(GetCurrentProcessId()).c_str());
+    if (hEvt) {
+        SetEvent(hEvt);
+        CloseHandle(hEvt);
+    }
     if (!pid)
         return true;
-    HANDLE h = OpenProcess(PROCESS_TERMINATE, FALSE, pid);
-    if (!h)
+    HANDLE hProc = OpenProcess(SYNCHRONIZE | PROCESS_TERMINATE, FALSE, pid);
+    if (!hProc)
         return false;
-    BOOL ok = TerminateProcess(h, 0);
-    CloseHandle(h);
-    if (ok)
+    DWORD wr = WaitForSingleObject(hProc, timeout_ms);
+    if (wr == WAIT_OBJECT_0) {
+        CloseHandle(hProc);
         g_monitorPid.store(0);
+        return true;
+    }
+    // Fallback: force terminate
+    BOOL ok = TerminateProcess(hProc, 0);
+    CloseHandle(hProc);
+    if (ok) g_monitorPid.store(0);
     return ok != 0;
 }
 
@@ -126,8 +143,19 @@ int run_monitor(unsigned long parent_pid, const std::wstring &exe_path, const st
         backoffMs = cfg.persistence_backoff_ms;
         backoffMaxMs = cfg.persistence_backoff_max_ms;
     }
-    // Wait for the parent process to exit
-    (void)wait_process(static_cast<DWORD>(parent_pid));
+    // Wait for parent exit or a graceful-stop signal
+    HANDLE hParent = OpenProcess(SYNCHRONIZE | PROCESS_QUERY_LIMITED_INFORMATION, FALSE, static_cast<DWORD>(parent_pid));
+    std::wstring stopName = stop_event_name(static_cast<DWORD>(parent_pid));
+    HANDLE hStop = CreateEventW(nullptr, TRUE, FALSE, stopName.c_str());
+    if (hParent) {
+        HANDLE hsWait[2] = {hParent, hStop};
+        WaitForMultipleObjects(2, hsWait, FALSE, INFINITE);
+        CloseHandle(hParent);
+        if (WaitForSingleObject(hStop, 0) == WAIT_OBJECT_0) {
+            CloseHandle(hStop);
+            return 0;
+        }
+    }
 
     // Restart loop with simple backoff and restart cap
     const int kMaxRestarts = maxRestarts;
@@ -160,7 +188,14 @@ int run_monitor(unsigned long parent_pid, const std::wstring &exe_path, const st
         }
         CloseHandle(pi.hThread);
         DWORD exit_code = 0;
-        WaitForSingleObject(pi.hProcess, INFINITE);
+        // Wait for child exit or stop signal
+        HANDLE hsChild[2] = {pi.hProcess, hStop};
+        DWORD wr = WaitForMultipleObjects(2, hsChild, FALSE, INFINITE);
+        if (wr == WAIT_OBJECT_0 + 1) {
+            CloseHandle(pi.hProcess);
+            CloseHandle(hStop);
+            return 0;
+        }
         if (!GetExitCodeProcess(pi.hProcess, &exit_code)) exit_code = 1;
         CloseHandle(pi.hProcess);
 
@@ -185,6 +220,7 @@ int run_monitor(unsigned long parent_pid, const std::wstring &exe_path, const st
         backoff = std::min(backoff * 2, backoff_max);
     }
 
+    CloseHandle(hStop);
     return 0;
 }
 
