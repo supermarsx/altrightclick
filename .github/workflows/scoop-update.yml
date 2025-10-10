@@ -86,14 +86,36 @@ jobs:
             scoop/altrightclick.json > scoop/altrightclick.json.tmp
           mv scoop/altrightclick.json.tmp scoop/altrightclick.json
 
-      - name: Commit changes
+      - name: Commit and push changes directly
+        shell: bash
         run: |
+          set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git config pull.rebase true
           git fetch origin main
-          # Rebase on top of latest main to avoid non-fast-forward
-          git rebase origin/main || true
+          # Ensure local main tracks remote
+          git checkout -B main origin/main
+          # Stage only if there are changes
+          if git diff --quiet -- scoop/altrightclick.json; then
+            echo "No manifest changes to commit"
+            exit 0
+          fi
           git add scoop/altrightclick.json
-          git commit -m "scoop: sync manifest to latest release" || echo "No changes"
-          git push origin HEAD:main
+          git commit -m "scoop: sync manifest to latest release"
+          # Try pushing; on failure, rebase and retry up to 3 times
+          for i in 1 2 3; do
+            if git push origin HEAD:main; then
+              echo "Push succeeded"
+              exit 0
+            fi
+            echo "Push failed, attempting rebase retry ($i)" >&2
+            git fetch origin main
+            if ! git pull --rebase origin main; then
+              git rebase --abort || true
+              echo "Rebase failed; stopping" >&2
+              exit 1
+            fi
+          done
+          echo "Push failed after retries" >&2
+          exit 1
