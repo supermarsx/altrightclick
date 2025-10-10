@@ -36,7 +36,18 @@ bool spawn_monitor(const std::wstring &exe_path, const std::string &config_path)
  */
 int run_monitor(unsigned long parent_pid, const std::wstring &exe_path, const std::wstring &config_path);
 
+/**
+ * @brief Returns the path to the intentional-exit marker file.
+ *        Located under %APPDATA%\\altrightclick for write access.
+ */
+std::wstring intent_marker_path();
+
+/**
+ * @brief Writes the intentional-exit marker so the monitor will not restart
+ *        the app, regardless of exit code.
+ */
+void write_intent_marker();
+
 }  // namespace persistence
 
 }  // namespace arc
-

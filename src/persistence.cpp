@@ -6,6 +6,8 @@
 #include "arc/persistence.h"
 
 #include <windows.h>
+#include <shlobj.h>
+#include <objbase.h>
 
 #include <string>
 #include <vector>
@@ -101,6 +103,11 @@ int run_monitor(unsigned long parent_pid, const std::wstring &exe_path, const st
     const std::chrono::milliseconds backoff_max(backoffMaxMs);
 
     while (true) {
+        // Clear stale intent marker before we (re)launch a child
+        {
+            std::wstring p = intent_marker_path();
+            DeleteFileW(p.c_str());
+        }
         // Enforce max restarts in window
         auto now = std::chrono::steady_clock::now();
         restarts.erase(std::remove_if(restarts.begin(), restarts.end(), [&](auto t) { return now - t > kWindow; }),
@@ -123,7 +130,17 @@ int run_monitor(unsigned long parent_pid, const std::wstring &exe_path, const st
         if (!GetExitCodeProcess(pi.hProcess, &exit_code)) exit_code = 1;
         CloseHandle(pi.hProcess);
 
-        if (exit_code == 0) {
+        // If the app wrote the intent marker, treat as intentional exit regardless of code
+        bool intentional = false;
+        {
+            std::wstring p = intent_marker_path();
+            DWORD attrs = GetFileAttributesW(p.c_str());
+            if (attrs != INVALID_FILE_ATTRIBUTES && !(attrs & FILE_ATTRIBUTE_DIRECTORY)) {
+                intentional = true;
+                DeleteFileW(p.c_str());
+            }
+        }
+        if (exit_code == 0 || intentional) {
             // Normal shutdown; stop monitoring
             arc::log::info("persistence: child exited normally; stopping monitor");
             break;
@@ -137,4 +154,28 @@ int run_monitor(unsigned long parent_pid, const std::wstring &exe_path, const st
     return 0;
 }
 
+}  // namespace arc::persistence
+namespace arc::persistence {
+static std::wstring appdata_dir() {
+    PWSTR appdataW = nullptr;
+    if (SUCCEEDED(SHGetKnownFolderPath(FOLDERID_RoamingAppData, 0, nullptr, &appdataW))) {
+        std::wstring wpath = std::wstring(appdataW) + L"\\altrightclick";
+        CoTaskMemFree(appdataW);
+        CreateDirectoryW(wpath.c_str(), nullptr);
+        return wpath;
+    }
+    return L".";
+}
+
+std::wstring intent_marker_path() {
+    return appdata_dir() + L"\\intentional_exit";
+}
+
+void write_intent_marker() {
+    std::wstring p = intent_marker_path();
+    HANDLE h = CreateFileW(p.c_str(), GENERIC_WRITE, FILE_SHARE_READ, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+    if (h != INVALID_HANDLE_VALUE) {
+        CloseHandle(h);
+    }
+}
 }  // namespace arc::persistence

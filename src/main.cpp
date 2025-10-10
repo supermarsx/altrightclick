@@ -365,5 +365,7 @@ int main(int argc, char **argv) {
     arc::tray::stop();
     arc::hook::stop();
     arc::log::stop_async();
+    // Mark intentional exit so persistence monitor (if any) does not relaunch us
+    arc::persistence::write_intent_marker();
     return 0;
 }
