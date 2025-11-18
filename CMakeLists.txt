@@ -19,18 +19,34 @@ configure_file(
   @ONLY
 )
 
-# Generate resource file with VERSIONINFO (and optional icon)
-set(ARC_ICON "${CMAKE_SOURCE_DIR}/res/altrightclick.ico")
-if(EXISTS "${ARC_ICON}")
-  set(ARC_ICON_LINE "IDI_APP_ICON ICON \"${ARC_ICON}\"")
-else()
-  set(ARC_ICON_LINE "")
-endif()
+# Generate resource file with VERSIONINFO (and icon generated at build)
+# We'll generate the .ico into the build directory so it can be produced during build
+set(ARC_ICON "${CMAKE_BINARY_DIR}/altrightclick_multi.ico")
+set(ARC_ICON_LINE "IDI_APP_ICON ICON \"${ARC_ICON}\"")
 configure_file(
   res/altrightclick.rc.in
   ${CMAKE_BINARY_DIR}/altrightclick.rc
   @ONLY
 )
+
+# Small programmatic icon generator
+add_executable(icon_gen src/icon_gen.cpp)
+if (MSVC)
+  target_compile_definitions(icon_gen PRIVATE UNICODE _UNICODE NOMINMAX WIN32_LEAN_AND_MEAN)
+  target_compile_options(icon_gen PRIVATE /W4 /permissive-)
+  target_link_libraries(icon_gen PRIVATE gdiplus)
+endif()
+
+# Custom command: run the icon_gen executable to create the ico in the build dir
+add_custom_command(
+  OUTPUT ${ARC_ICON}
+  COMMAND $<TARGET_FILE:icon_gen> ${ARC_ICON}
+  WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+  DEPENDS icon_gen
+  COMMENT "Generating programmatic icon ${ARC_ICON}"
+)
+
+add_custom_target(generate_icon DEPENDS ${ARC_ICON})
 
 # Sources
 set(SRC
@@ -47,6 +63,7 @@ set(SRC
 )
 
 add_executable(altrightclick ${SRC} ${CMAKE_BINARY_DIR}/altrightclick.rc)
+add_dependencies(altrightclick generate_icon)
 
 target_include_directories(altrightclick PRIVATE include src ${VERSION_HEADER_DIR})
 
@@ -100,6 +117,16 @@ if (BUILD_TESTING)
   endif()
   target_link_libraries(config_edge_test PRIVATE user32 shell32 advapi32 ole32)
   add_test(NAME config_edge_test COMMAND config_edge_test)
+
+  # Icon validation test - ensure generated ICO contains expected sizes
+  add_executable(icon_test tests/icon_test.cpp)
+  add_dependencies(icon_test generate_icon)
+  target_include_directories(icon_test PRIVATE include ${VERSION_HEADER_DIR})
+  if (MSVC)
+    target_compile_definitions(icon_test PRIVATE UNICODE _UNICODE NOMINMAX WIN32_LEAN_AND_MEAN)
+    target_compile_options(icon_test PRIVATE /W4 /permissive-)
+  endif()
+  add_test(NAME icon_test COMMAND icon_test ${CMAKE_BINARY_DIR}/altrightclick_multi.ico)
 endif()
 
 # -----------------------------

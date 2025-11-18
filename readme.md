@@ -121,8 +121,17 @@ Manual CMake invocations:
 Scripted builds:
 - `scripts\compile.bat` builds both x64 and ARM64 from anywhere (resolves repo root automatically).
 
+Icon generation
+- The repository includes a small programmatic icon generator used to produce `altrightclick.ico` during the build.
+- To regenerate the icon manually, build and run the helper:
+  - `cmake --build build/x64 --target icon_gen --config Release`
+  - `build/x64/Release/icon_gen.exe build/x64/altrightclick.ico`
+- The build system runs the generator automatically; the icon is created under the build directory and embedded into the executable.
+
 Output:
 - Executable: `altrightclick` (under your chosen build directory/config)
+- Generated icon (build): `build/x64/altrightclick.ico`
+
 
 ## Development
 - Structure
