@@ -92,7 +92,7 @@ static std::vector<uint8_t> generate_mouse(int w, int h) {
 
     // Draw trail on supersampled buffer
     for(int t=0;t<strail_length;t++){
-        float a = 0.07f * (1.0f - float(t) / trail_length);
+        float a = 0.10f * (1.0f - float(t) / strail_length); // slightly stronger trail
         int yshift = t * SS;
         for(int y=0;y<sh;y++){
             for(int x=0;x<sw;x++){
@@ -102,6 +102,7 @@ static std::vector<uint8_t> generate_mouse(int w, int h) {
                     int i=(y*sw+x)*4;
                     uint8_t trail_a = uint8_t(255 * a);
                     if(trail_a){
+                        // blend towards pale green trail (200,238,200)
                         sbuf[i+0] = uint8_t((sbuf[i+0] * (255 - trail_a) + (uint8_t)200 * trail_a) / 255);
                         sbuf[i+1] = uint8_t((sbuf[i+1] * (255 - trail_a) + (uint8_t)238 * trail_a) / 255);
                         sbuf[i+2] = uint8_t((sbuf[i+2] * (255 - trail_a) + (uint8_t)200 * trail_a) / 255);
@@ -129,8 +130,12 @@ static std::vector<uint8_t> generate_mouse(int w, int h) {
         for(int x=0;x<sw;x++){
             if(!smask[y*sw+x]) continue;
             bool edge=false;
-            const int nx[4]={-1,1,0,0}; const int ny[4]={0,0,-1,1};
-            for(int k=0;k<4;k++){ int xx=x+nx[k]; int yy=y+ny[k]; if(xx<0||xx>=sw||yy<0||yy>=sh||!smask[yy*sw+xx]){edge=true;break;} }
+            // Use 8-neighborhood to make a thicker outline at supersampled scale
+            for(int oy=-1;oy<=1;oy++) for(int ox=-1;ox<=1;ox++){
+                if(ox==0 && oy==0) continue;
+                int xx=x+ox; int yy=y+oy;
+                if(xx<0||xx>=sw||yy<0||yy>=sh || !smask[yy*sw+xx]){ edge=true; break; }
+            }
             if(edge) sset(x,y,255,255,255,255);
         }
     }
@@ -367,7 +372,7 @@ int main(int argc, char** argv){
     size_t pos = outstr.find_last_of("/\\");
     std::string dir = (pos==std::string::npos) ? std::string() : outstr.substr(0,pos+1);
     std::string multi = dir + "altrightclick_multi.ico";
-    std::vector<int> multi_sizes = {256,64,48,32,16};
+    std::vector<int> multi_sizes = {512,256,64,48,32,16};
     write_ico_file(multi.c_str(), multi_sizes);
 
     // Export per-size BMPs for quick review (write 32-bit BMP files)
