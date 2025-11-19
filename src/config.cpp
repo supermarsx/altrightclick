@@ -1,6 +1,17 @@
 /**
  * @file config.cpp
  * @brief Configuration parsing and persistence helpers.
+ *
+ * This translation unit provides functionality to load and save the application's
+ * configuration from a simple key=value text file (UTF-8 encoded paths are used
+ * with std::filesystem::path). The parser is tolerant of comments and empty
+ * lines and performs case-insensitive key matching. Several small helpers are
+ * implemented locally (string trimming/case conversion and simple key-to-virtual-
+ * key mapping).
+ *
+ * The configuration format is intentionally simple and human-editable. Missing
+ * or invalid values are ignored and sensible defaults from the Config struct
+ * are preserved.
  */
 
 #include "arc/config.h"
@@ -21,11 +32,31 @@
 
 namespace arc::config {
 
+/**
+ * @brief Convert a string to lowercase (ASCII / C locale aware transformation).
+ *
+ * This helper performs an in-place lowercase conversion and returns the
+ * converted copy. It is primarily intended for case-insensitive key and value
+ * comparison within the parser.
+ *
+ * @param s Input string copy to convert (passed by value intentionally).
+ * @return std::string Lowercased string.
+ */
 static std::string to_lower(std::string s) {
     std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
     return s;
 }
 
+/**
+ * @brief Trim whitespace from both ends of a string.
+ *
+ * Removes common ASCII whitespace characters (space, tab, CR, LF) from the
+ * beginning and end of the input string. If the string contains only
+ * whitespace an empty string is returned.
+ *
+ * @param s Input string to trim.
+ * @return std::string Trimmed substring (may be empty).
+ */
 static std::string trim(const std::string &s) {
     size_t a = s.find_first_not_of(" \t\r\n");
     size_t b = s.find_last_not_of(" \t\r\n");
@@ -34,6 +65,17 @@ static std::string trim(const std::string &s) {
     return s.substr(a, b - a + 1);
 }
 
+/**
+ * @brief Map a textual key name to a Win32 virtual-key code.
+ *
+ * Recognizes a small set of common names used in the configuration file such
+ * as "ALT", "CTRL", "SHIFT", "WIN", "ESC", and "F12". Matching is
+ * case-insensitive. Unknown names return 0 which callers treat as an ignored
+ * or missing mapping.
+ *
+ * @param name Name of the key (case-insensitive).
+ * @return unsigned int Virtual-key code on success, or 0 if the name is unknown.
+ */
 static unsigned int vk_from_str(const std::string &name) {
     std::string n = to_lower(name);
     if (n == "alt")
@@ -51,6 +93,17 @@ static unsigned int vk_from_str(const std::string &name) {
     return 0;  // unknown -> ignored by caller
 }
 
+/**
+ * @brief Parse a modifier combo string into a vector of virtual-key codes.
+ *
+ * The configuration accepts modifier specifications such as "ALT+CTRL" or
+ * "ALT,CTRL". This helper splits the input on both '+' and ',' delimiters and
+ * converts each token to a virtual-key code using vk_from_str(). The output
+ * vector is cleared before populating.
+ *
+ * @param val Input modifier string from the config file.
+ * @param out Pointer to a vector<unsigned int> to receive the parsed VK codes.
+ */
 static void parse_modifier_combo(const std::string &val, std::vector<unsigned int> *out) {
     out->clear();
     std::string tmp;
@@ -70,6 +123,16 @@ static void parse_modifier_combo(const std::string &val, std::vector<unsigned in
     }
 }
 
+/**
+ * @brief Convert a textual trigger name into the Config::Trigger enum.
+ *
+ * Supports names such as "middle", "m", "mbutton", "x1", "xbutton1",
+ * "x2", "xbutton2" and defaults to LEFT when the name is not recognized.
+ * Matching is case-insensitive.
+ *
+ * @param name Trigger name from configuration.
+ * @return Config::Trigger Corresponding trigger enum value.
+ */
 static Config::Trigger trigger_from_str(const std::string &name) {
     std::string n = to_lower(name);
     if (n == "middle" || n == "m" || n == "mbutton")
@@ -82,9 +145,16 @@ static Config::Trigger trigger_from_str(const std::string &name) {
 }
 
 /**
- * Loads configuration from a UTF-8 path.
- * Lines are parsed as key=value with case-insensitive keys. Unknown keys are ignored.
- * Missing or invalid files return defaults.
+ * @brief Load configuration from a file path.
+ *
+ * The parser reads the file line-by-line, supports comment lines starting with
+ * '#' or ';', trims whitespace, and parses lines of the form "key=value".
+ * Keys are matched case-insensitively and unknown keys are ignored. Invalid
+ * values leave the corresponding Config fields at their defaults.
+ *
+ * @param path Filesystem path to the configuration file (UTF-8 capable via std::filesystem).
+ * @return Config Parsed configuration object. If the file cannot be opened the
+ *                default-constructed Config is returned.
  */
 Config load(const std::filesystem::path &path) {
     Config cfg;
@@ -150,20 +220,44 @@ Config load(const std::filesystem::path &path) {
         } else if (key == "persistence" || key == "persistence_enabled") {
             cfg.persistence_enabled = (vall == "1" || vall == "true" || vall == "yes");
         } else if (key == "persistence_max_restarts") {
-            try { cfg.persistence_max_restarts = std::max(0, std::stoi(vall)); } catch (...) {}
+            try {
+                cfg.persistence_max_restarts = std::max(0, std::stoi(vall));
+            } catch (...) {
+            }
         } else if (key == "persistence_window_sec") {
-            try { cfg.persistence_window_sec = std::max(1, std::stoi(vall)); } catch (...) {}
+            try {
+                cfg.persistence_window_sec = std::max(1, std::stoi(vall));
+            } catch (...) {
+            }
         } else if (key == "persistence_backoff_ms") {
-            try { cfg.persistence_backoff_ms = std::max(0, std::stoi(vall)); } catch (...) {}
+            try {
+                cfg.persistence_backoff_ms = std::max(0, std::stoi(vall));
+            } catch (...) {
+            }
         } else if (key == "persistence_backoff_max_ms") {
-            try { cfg.persistence_backoff_max_ms = std::max(0, std::stoi(vall)); } catch (...) {}
+            try {
+                cfg.persistence_backoff_max_ms = std::max(0, std::stoi(vall));
+            } catch (...) {
+            }
         } else if (key == "persistence_stop_timeout_ms") {
-            try { cfg.persistence_stop_timeout_ms = std::max(0, std::stoi(vall)); } catch (...) {}
+            try {
+                cfg.persistence_stop_timeout_ms = std::max(0, std::stoi(vall));
+            } catch (...) {
+            }
         }
     }
     return cfg;
 }
 
+/**
+ * @brief Get directory of the running executable.
+ *
+ * This helper returns the directory containing the current executable by
+ * calling GetModuleFileNameW(nullptr,...). The returned path is converted to
+ * a std::filesystem::path. On failure a path containing "." is returned.
+ *
+ * @return std::filesystem::path Directory of the current executable.
+ */
 static std::filesystem::path get_exe_dir() {
     wchar_t buf[MAX_PATH];
     DWORD len = GetModuleFileNameW(nullptr, buf, MAX_PATH);
@@ -174,17 +268,24 @@ static std::filesystem::path get_exe_dir() {
 }
 
 /**
- * Computes default config path: prefers <exe_dir>\\config.ini, otherwise
- * %APPDATA%\\altrightclick\\config.ini.
+ * @brief Compute the default configuration file path.
+ *
+ * Preference order:
+ *  1. If <exe_dir>\config.ini exists, return that path.
+ *  2. Otherwise return %APPDATA%\altrightclick\config.ini if the known folder
+ *     API succeeds.
+ *  3. Fallback to <exe_dir>\config.ini.
+ *
+ * @return std::filesystem::path Default configuration file path.
  */
 std::filesystem::path default_path() {
-    // Prefer exe_dir\\config.ini
+    // Prefer exe_dir\config.ini
     std::filesystem::path local = get_exe_dir() / "config.ini";
     std::ifstream f(local);
     if (f.good())
         return local;
 
-    // Fallback to %APPDATA%\\altrightclick\\config.ini
+    // Fallback to %APPDATA%\altrightclick\config.ini
     PWSTR appdataW = nullptr;
     if (SUCCEEDED(SHGetKnownFolderPath(FOLDERID_RoamingAppData, 0, nullptr, &appdataW))) {
         std::wstring wpath = std::wstring(appdataW) + L"\\altrightclick\\config.ini";
@@ -197,11 +298,15 @@ std::filesystem::path default_path() {
 }
 
 /**
- * Writes configuration to disk, creating parent directory if needed.
+ * @brief Write configuration to disk using a simple text format.
  *
- * @param path Destination UTF-8 path.
- * @param cfg  Configuration to write.
- * @return true on success.
+ * The function creates the parent directory if necessary and writes a human-
+ * readable key=value file including comments describing accepted values. The
+ * file will be truncated or created as needed.
+ *
+ * @param path Destination filesystem path where the config will be written.
+ * @param cfg  Config object containing the settings to persist.
+ * @return true if the file was written successfully and the output stream is in a good state.
  */
 bool save(const std::filesystem::path &path, const Config &cfg) {
     // Ensure parent directory exists
