@@ -46,8 +46,29 @@ struct IconDirEntry {
     uint32_t imageOffset;
 };
 
-static void write_le(std::ofstream &f, uint32_t v) { f.put(v & 0xFF); f.put((v>>8)&0xFF); f.put((v>>16)&0xFF); f.put((v>>24)&0xFF); }
-static void write_le16(std::ofstream &f, uint16_t v) { f.put(v & 0xFF); f.put((v>>8)&0xFF); }
+/**
+ * @brief Write a 32-bit little-endian value into a binary stream.
+ *
+ * @param f Output stream receiving the encoded bytes.
+ * @param v Unsigned integer to serialize.
+ */
+static void write_le(std::ofstream &f, uint32_t v) {
+    f.put(v & 0xFF);
+    f.put((v >> 8) & 0xFF);
+    f.put((v >> 16) & 0xFF);
+    f.put((v >> 24) & 0xFF);
+}
+
+/**
+ * @brief Write a 16-bit little-endian value into a binary stream.
+ *
+ * @param f Output stream receiving the encoded bytes.
+ * @param v Unsigned integer to serialize.
+ */
+static void write_le16(std::ofstream &f, uint16_t v) {
+    f.put(v & 0xFF);
+    f.put((v >> 8) & 0xFF);
+}
 
 /**
  * Generate a pixel-art mouse silhouette with a falling effect.
@@ -236,24 +257,29 @@ static std::vector<uint8_t> make_bmp_masked(int w,int h,const std::vector<uint8_
  * The first CLI argument can be an output path for the ICO.
  */
 #ifdef _WIN32
-// Helper: get encoder CLSID for given MIME type
-static int GetEncoderClsid(const WCHAR* format, CLSID* pClsid)
-{
+/**
+ * @brief Look up the CLSID for a GDI+ encoder by MIME type.
+ *
+ * @param format Requested MIME type (e.g., L"image/png").
+ * @param pClsid Receives the encoder CLSID on success.
+ * @return Index of the encoder on success, -1 on failure.
+ */
+static int GetEncoderClsid(const WCHAR *format, CLSID *pClsid) {
     UINT num = 0;          // number of image encoders
     UINT size = 0;         // size of the image encoder array in bytes
 
     GetImageEncodersSize(&num, &size);
-    if(size == 0) return -1;  // Failure
+    if (size == 0)
+        return -1;  // Failure
 
-    ImageCodecInfo* pImageCodecInfo = (ImageCodecInfo*)(malloc(size));
-    if(pImageCodecInfo == NULL) return -1;
+    ImageCodecInfo *pImageCodecInfo = (ImageCodecInfo *)(malloc(size));
+    if (pImageCodecInfo == NULL)
+        return -1;
 
     GetImageEncoders(num, size, pImageCodecInfo);
 
-    for(UINT j = 0; j < num; ++j)
-    {
-        if(wcscmp(pImageCodecInfo[j].MimeType, format) == 0)
-        {
+    for (UINT j = 0; j < num; ++j) {
+        if (wcscmp(pImageCodecInfo[j].MimeType, format) == 0) {
             *pClsid = pImageCodecInfo[j].Clsid;
             free(pImageCodecInfo);
             return j;  // Success
@@ -263,31 +289,48 @@ static int GetEncoderClsid(const WCHAR* format, CLSID* pClsid)
     return -1;  // Failure
 }
 
-// Convert RGBA buffer to PNG bytes using GDI+; returns empty vector on failure
-static std::vector<uint8_t> png_from_rgba(int w, int h, const std::vector<uint8_t>& rgba){
+/**
+ * @brief Convert an RGBA buffer to PNG bytes using GDI+.
+ *
+ * @param w Width in pixels.
+ * @param h Height in pixels.
+ * @param rgba RGBA buffer, row-major, top-to-bottom.
+ * @return Encoded PNG byte vector or empty vector on failure.
+ */
+static std::vector<uint8_t> png_from_rgba(int w, int h, const std::vector<uint8_t> &rgba) {
     std::vector<uint8_t> out;
-    IStream* istream = NULL;
-    if(CreateStreamOnHGlobal(NULL, TRUE, &istream) != S_OK) return out;
+    IStream *istream = NULL;
+    if (CreateStreamOnHGlobal(NULL, TRUE, &istream) != S_OK)
+        return out;
     {
         Bitmap bmp(w, h, PixelFormat32bppARGB);
         // set pixels
-        for(int y=0;y<h;y++){
-            for(int x=0;x<w;x++){
-                int i = (y*w + x)*4;
-                Color c(rgba[i+3], rgba[i+2], rgba[i+1], rgba[i+0]); // A,R,G,B
+        for (int y = 0; y < h; y++) {
+            for (int x = 0; x < w; x++) {
+                int i = (y * w + x) * 4;
+                Color c(rgba[i + 3], rgba[i + 2], rgba[i + 1], rgba[i + 0]);  // A,R,G,B
                 bmp.SetPixel(x, y, c);
             }
         }
         CLSID pngClsid;
-        if(GetEncoderClsid(L"image/png", &pngClsid) < 0){ istream->Release(); return out; }
-        if(bmp.Save(istream, &pngClsid, NULL) != Ok){ istream->Release(); return out; }
+        if (GetEncoderClsid(L"image/png", &pngClsid) < 0) {
+            istream->Release();
+            return out;
+        }
+        if (bmp.Save(istream, &pngClsid, NULL) != Ok) {
+            istream->Release();
+            return out;
+        }
 
         // read IStream to HGLOBAL
         HGLOBAL hg = NULL;
-        if(GetHGlobalFromStream(istream, &hg) != S_OK){ istream->Release(); return out; }
+        if (GetHGlobalFromStream(istream, &hg) != S_OK) {
+            istream->Release();
+            return out;
+        }
         SIZE_T sz = GlobalSize(hg);
         void* data = GlobalLock(hg);
-        if(data){
+        if (data) {
             out.resize(sz);
             memcpy(out.data(), data, sz);
             GlobalUnlock(hg);
@@ -298,9 +341,17 @@ static std::vector<uint8_t> png_from_rgba(int w, int h, const std::vector<uint8_
 }
 #endif
 
-static bool write_ico_file(const char* outpath, const std::vector<int>& sizes){
+/**
+ * @brief Write a multi-size ICO file generated from the procedural art.
+ *
+ * @param outpath Output path for the ICO file.
+ * @param sizes List of sizes to embed (the generator renders each size).
+ * @return true on success, false on IO/encoding failure.
+ */
+static bool write_ico_file(const char *outpath, const std::vector<int> &sizes) {
     std::ofstream f(outpath, std::ios::binary);
-    if(!f) return false;
+    if (!f)
+        return false;
     // ICONDIR
     f.put(0); f.put(0); // reserved
     f.put(1); f.put(0); // type 1 = icon
@@ -356,7 +407,77 @@ static bool write_ico_file(const char* outpath, const std::vector<int>& sizes){
     return true;
 }
 
-int main(int argc, char** argv){
+/**
+ * @brief Write a simple 32-bit BMP file for inspection/debugging.
+ *
+ * @param path Destination file path.
+ * @param w Width in pixels.
+ * @param h Height in pixels.
+ * @param rgba RGBA buffer to export (top-to-bottom row-major).
+ * @return true on success.
+ */
+static bool write_bmp_file(const std::string &path, int w, int h, const std::vector<uint8_t> &rgba) {
+    std::ofstream of(path, std::ios::binary);
+    if (!of)
+        return false;
+    // BITMAPFILEHEADER (14 bytes)
+    uint32_t bfSize = 14 + 40 + w * h * 4;  // file header + info header + pixel data
+    of.put('B');
+    of.put('M');
+    of.put(static_cast<char>(bfSize & 0xFF));
+    of.put(static_cast<char>((bfSize >> 8) & 0xFF));
+    of.put(static_cast<char>((bfSize >> 16) & 0xFF));
+    of.put(static_cast<char>((bfSize >> 24) & 0xFF));
+    // bfReserved1/2
+    of.put(0);
+    of.put(0);
+    of.put(0);
+    of.put(0);
+    // bfOffBits (14 + 40)
+    uint32_t offBits = 14 + 40;
+    of.put(static_cast<char>(offBits & 0xFF));
+    of.put(static_cast<char>((offBits >> 8) & 0xFF));
+    of.put(static_cast<char>((offBits >> 16) & 0xFF));
+    of.put(static_cast<char>((offBits >> 24) & 0xFF));
+    // BITMAPINFOHEADER (40 bytes)
+    auto push_u32 = [&](uint32_t v) {
+        of.put(static_cast<char>(v & 0xFF));
+        of.put(static_cast<char>((v >> 8) & 0xFF));
+        of.put(static_cast<char>((v >> 16) & 0xFF));
+        of.put(static_cast<char>((v >> 24) & 0xFF));
+    };
+    auto push_u16 = [&](uint16_t v) {
+        of.put(static_cast<char>(v & 0xFF));
+        of.put(static_cast<char>((v >> 8) & 0xFF));
+    };
+    push_u32(40);  // biSize
+    push_u32(w);
+    push_u32(h);  // height for BMP (color only)
+    push_u16(1);  // planes
+    push_u16(32);  // bitcount
+    push_u32(0);  // compression BI_RGB
+    push_u32(w * h * 4);  // biSizeImage
+    push_u32(0);
+    push_u32(0);  // biXPelsPerMeter biYPelsPerMeter
+    push_u32(0);  // biClrUsed
+    push_u32(0);  // biClrImportant
+    // Pixel data (bottom-up)
+    for (int y = h - 1; y >= 0; y--) {
+        for (int x = 0; x < w; x++) {
+            int i = (y * w + x) * 4;
+            of.put(static_cast<char>(rgba[i + 0]));  // B
+            of.put(static_cast<char>(rgba[i + 1]));  // G
+            of.put(static_cast<char>(rgba[i + 2]));  // R
+            of.put(static_cast<char>(rgba[i + 3]));  // A
+        }
+    }
+    return true;
+}
+
+/**
+ * @brief Program entry point: generates ICO/BMP assets.
+ */
+int main(int argc, char **argv) {
     const char* outpath = "res/altrightclick.ico";
     if(argc > 1) outpath = argv[1];
 #ifdef _WIN32
@@ -376,43 +497,6 @@ int main(int argc, char** argv){
     write_ico_file(multi.c_str(), multi_sizes);
 
     // Export per-size BMPs for quick review (write 32-bit BMP files)
-    auto write_bmp_file = [&](const std::string &path, int w, int h, const std::vector<uint8_t>& rgba)->bool{
-        std::ofstream of(path, std::ios::binary);
-        if(!of) return false;
-        // BITMAPFILEHEADER (14 bytes)
-        uint32_t bfSize = 14 + 40 + w*h*4; // file header + info header + pixel data
-        of.put('B'); of.put('M');
-        of.put((char)(bfSize & 0xFF)); of.put((char)((bfSize>>8)&0xFF)); of.put((char)((bfSize>>16)&0xFF)); of.put((char)((bfSize>>24)&0xFF));
-        // bfReserved1/2
-        of.put(0); of.put(0); of.put(0); of.put(0);
-        // bfOffBits (14 + 40)
-        uint32_t offBits = 14 + 40;
-        of.put((char)(offBits & 0xFF)); of.put((char)((offBits>>8)&0xFF)); of.put((char)((offBits>>16)&0xFF)); of.put((char)((offBits>>24)&0xFF));
-        // BITMAPINFOHEADER (40 bytes)
-        auto push_u32 = [&](uint32_t v){ of.put((char)(v & 0xFF)); of.put((char)((v>>8)&0xFF)); of.put((char)((v>>16)&0xFF)); of.put((char)((v>>24)&0xFF)); };
-        auto push_u16 = [&](uint16_t v){ of.put((char)(v & 0xFF)); of.put((char)((v>>8)&0xFF)); };
-        push_u32(40); // biSize
-        push_u32(w);
-        push_u32(h); // height for BMP (color only)
-        push_u16(1); // planes
-        push_u16(32); // bitcount
-        push_u32(0); // compression BI_RGB
-        push_u32(w*h*4); // biSizeImage
-        push_u32(0); push_u32(0); // biXPelsPerMeter biYPelsPerMeter
-        push_u32(0); // biClrUsed
-        push_u32(0); // biClrImportant
-        // Pixel data (bottom-up)
-        for(int y=h-1;y>=0;y--){
-            for(int x=0;x<w;x++){
-                int i = (y*w + x)*4;
-                of.put((char)rgba[i+0]); // B
-                of.put((char)rgba[i+1]); // G
-                of.put((char)rgba[i+2]); // R
-                of.put((char)rgba[i+3]); // A
-            }
-        }
-        return true;
-    };
     for(int s : multi_sizes){
         auto bmp = generate_mouse(s,s);
         std::string bmp_path = dir + "altrightclick_" + std::to_string(s) + ".bmp";

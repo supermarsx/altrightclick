@@ -20,18 +20,31 @@
 
 namespace arc::persistence {
 
+/// Tracks the PID of the currently running monitor child (if any).
 static std::atomic<DWORD> g_monitorPid{0};
 
+/**
+ * @brief Returns the named event used to signal a monitor stop.
+ *
+ * @param parentPid PID of the monitored parent process.
+ * @return Event name suitable for CreateEventW/GetEventByName.
+ */
 static std::wstring stop_event_name(DWORD parentPid) {
     return L"Local\\altrightclick_stop_" + std::to_wstring(parentPid);
 }
 
+/**
+ * @brief Wrap a path in quotes if it contains whitespace.
+ */
 static std::wstring quote_if_needed(const std::wstring &s) {
     if (s.find(L' ') != std::wstring::npos)
         return L"\"" + s + L"\"";
     return s;
 }
 
+/**
+ * @brief Launch a detached monitor instance tracking the current process.
+ */
 bool spawn_monitor(const std::wstring &exe_path, const std::string &config_path) {
     DWORD pid = GetCurrentProcessId();
     std::wstring cmd = quote_if_needed(exe_path) + L" --monitor --parent " + std::to_wstring(pid);
@@ -57,6 +70,9 @@ bool spawn_monitor(const std::wstring &exe_path, const std::string &config_path)
     return true;
 }
 
+/**
+ * @brief Check if the previously spawned monitor process is still alive.
+ */
 bool is_monitor_running() {
     DWORD pid = g_monitorPid.load();
     if (!pid)
@@ -74,6 +90,18 @@ bool is_monitor_running() {
     return running;
 }
 
+/**
+ * @brief Attempt to stop the monitor gracefully, falling back to termination.
+ *
+ * @param timeout_ms Maximum wait time for graceful shutdown.
+ * @return true if the monitor stopped (gracefully or via termination).
+ */
+/**
+ * @brief Attempt to stop the monitor gracefully, falling back to termination.
+ *
+ * @param timeout_ms Maximum wait time for graceful shutdown.
+ * @return true if the monitor stopped (gracefully or via termination).
+ */
 bool stop_monitor_graceful(unsigned int timeout_ms) {
     DWORD pid = g_monitorPid.load();
     // Signal stop event named by current process id (parent id used by monitor)
@@ -100,6 +128,12 @@ bool stop_monitor_graceful(unsigned int timeout_ms) {
     return ok != 0;
 }
 
+/**
+ * @brief Wait for a process to exit and return its code.
+ *
+ * @param pid Process identifier to wait on.
+ * @return Exit code (STILL_ACTIVE if the process cannot be opened).
+ */
 static DWORD wait_process(DWORD pid) {
     HANDLE h = OpenProcess(SYNCHRONIZE | PROCESS_QUERY_INFORMATION, FALSE, pid);
     if (!h) return STILL_ACTIVE;  // treat as active; we'll just proceed
@@ -110,6 +144,14 @@ static DWORD wait_process(DWORD pid) {
     return code;
 }
 
+/**
+ * @brief Spawn a child process monitored by the persistence helper.
+ *
+ * @param exe_path Path to the executable to relaunch.
+ * @param config_path Optional config path to pass via CLI.
+ * @param out_pi Receives PROCESS_INFORMATION for the spawned child.
+ * @return 0 on success, -1 on failure.
+ */
 static DWORD spawn_child(const std::wstring &exe_path, const std::wstring &config_path, PROCESS_INFORMATION *out_pi) {
     std::wstring cmd = quote_if_needed(exe_path) + L" --launched-by-monitor";
     if (!config_path.empty()) {
@@ -129,6 +171,9 @@ static DWORD spawn_child(const std::wstring &exe_path, const std::wstring &confi
     return 0;
 }
 
+/**
+ * @brief Entry point for the monitor child process.
+ */
 int run_monitor(unsigned long parent_pid, const std::wstring &exe_path, const std::wstring &config_path) {
     // Load persistence tuning from config if provided
     int maxRestarts = 5;
@@ -226,6 +271,12 @@ int run_monitor(unsigned long parent_pid, const std::wstring &exe_path, const st
 
 }  // namespace arc::persistence
 namespace arc::persistence {
+
+/**
+ * @brief Resolve and create (if needed) the application data directory.
+ *
+ * @return UTF-16 path to %APPDATA%\\altrightclick (or "." on failure).
+ */
 static std::wstring appdata_dir() {
     PWSTR appdataW = nullptr;
     if (SUCCEEDED(SHGetKnownFolderPath(FOLDERID_RoamingAppData, 0, nullptr, &appdataW))) {
@@ -237,10 +288,16 @@ static std::wstring appdata_dir() {
     return L".";
 }
 
+/**
+ * @brief Compute the marker path indicating intentional exit.
+ */
 std::wstring intent_marker_path() {
     return appdata_dir() + L"\\intentional_exit";
 }
 
+/**
+ * @brief Create (or overwrite) the intentional-exit marker file.
+ */
 void write_intent_marker() {
     std::wstring p = intent_marker_path();
     HANDLE h = CreateFileW(p.c_str(), GENERIC_WRITE, FILE_SHARE_READ, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);

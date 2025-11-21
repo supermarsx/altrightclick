@@ -1,3 +1,8 @@
+/**
+ * @file config_test.cpp
+ * @brief Regression tests for arc::config load/save helpers.
+ */
+
 #include <windows.h>
 
 #include <cstdio>
@@ -8,6 +13,13 @@
 
 using arc::config::Config;
 
+/**
+ * @brief Write a temporary config file to exercise parser behavior.
+ *
+ * @param name Relative file name used for writing.
+ * @param content File content.
+ * @return Path of the file that was written.
+ */
 static std::string write_temp_file(const std::string &name, const std::string &content) {
     // Write to current working directory used by ctest
     std::string path = name;
@@ -17,6 +29,12 @@ static std::string write_temp_file(const std::string &name, const std::string &c
     return path;
 }
 
+/**
+ * @brief Minimal assertion helper printing failures to stderr.
+ *
+ * @param cond Condition that must hold.
+ * @param msg Description printed on failure.
+ */
 static void expect(bool cond, const char *msg) {
     if (!cond) {
         std::fprintf(stderr, "[FAIL] %s\n", msg);
@@ -24,6 +42,7 @@ static void expect(bool cond, const char *msg) {
     }
 }
 
+/** @brief Entry point for config load/save regression tests. */
 int main() {
     // Defaults
     {

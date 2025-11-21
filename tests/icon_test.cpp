@@ -1,10 +1,21 @@
+/**
+ * @file icon_test.cpp
+ * @brief Smoke-test that the generated ICO contains the expected sizes.
+ */
+
 #include <fstream>
 #include <vector>
 #include <cstdint>
 #include <iostream>
 
-// Simple ICO validator: checks that the ICO contains entries for expected sizes
-int main(int argc, char** argv){
+/**
+ * @brief Validate that an ICO file includes required size entries.
+ *
+ * @param argc Argument count.
+ * @param argv Argument vector (optional target ICO path).
+ * @return 0 on success, non-zero if a required size is missing or IO fails.
+ */
+int main(int argc, char **argv) {
     const char* path = "build/x64/altrightclick.ico";
     if(argc>1) path = argv[1];
     std::ifstream f(path, std::ios::binary);

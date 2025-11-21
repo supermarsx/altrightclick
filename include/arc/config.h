@@ -63,17 +63,16 @@ struct Config {
     /// Disabled by default. Only applies to interactive mode (not service).
     bool persistence_enabled = false;
 
-    // Persistence tuning (only used when persistence_enabled=true)
-    // Max number of restarts allowed within a rolling window before backing off longer.
+    /// Max number of restarts permitted before forcing an extended backoff.
     int persistence_max_restarts = 5;
-    // Rolling window length in seconds for counting restarts.
+    /// Rolling window length, in seconds, used to count restarts.
     int persistence_window_sec = 60;
-    // Initial backoff in milliseconds between restarts.
+    /// Initial backoff delay in milliseconds between restart attempts.
     int persistence_backoff_ms = 1000;
-    // Maximum backoff cap in milliseconds.
+    /// Maximum exponential backoff cap in milliseconds.
     int persistence_backoff_max_ms = 30000;
 
-    // Timeout in milliseconds for graceful monitor stop before force-terminating.
+    /// Timeout in milliseconds for graceful monitor shutdown before force-kill.
     int persistence_stop_timeout_ms = 3000;
 };
 

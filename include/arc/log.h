@@ -13,12 +13,12 @@
 
 namespace arc { namespace log {
 
-// Severity levels (in increasing verbosity order).
+/// @brief Severity levels (in increasing verbosity order).
 enum class LogLevel {
-    Error = 0,
-    Warn = 1,
-    Info = 2,
-    Debug = 3
+    Error = 0,  ///< Error conditions that typically abort functionality.
+    Warn = 1,   ///< Recoverable problems worth surfacing to the user.
+    Info = 2,   ///< Informational diagnostics about normal operation.
+    Debug = 3   ///< Verbose debugging information.
 };
 
 /**
@@ -81,10 +81,13 @@ std::string last_error_message(uint32_t err);
  */
 void write(LogLevel lvl, const std::string &msg);
 
-// Convenience wrappers.
+/// @brief Convenience wrapper that logs at LogLevel::Error.
 inline void error(const std::string &msg) { write(LogLevel::Error, msg); }
+/// @brief Convenience wrapper that logs at LogLevel::Warn.
 inline void warn(const std::string &msg) { write(LogLevel::Warn, msg); }
+/// @brief Convenience wrapper that logs at LogLevel::Info.
 inline void info(const std::string &msg) { write(LogLevel::Info, msg); }
+/// @brief Convenience wrapper that logs at LogLevel::Debug.
 inline void debug(const std::string &msg) { write(LogLevel::Debug, msg); }
 
 }  // namespace log

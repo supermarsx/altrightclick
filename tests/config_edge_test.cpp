@@ -1,3 +1,8 @@
+/**
+ * @file config_edge_test.cpp
+ * @brief Edge-case regression tests for arc::config parsing.
+ */
+
 #include <windows.h>
 
 #include <cstdio>
@@ -8,6 +13,9 @@
 
 using arc::config::Config;
 
+/**
+ * @brief Write a temporary config file with the provided contents.
+ */
 static std::string write_tmp(const std::string &name, const std::string &content) {
     std::ofstream out(name, std::ios::binary | std::ios::trunc);
     out << content;
@@ -15,6 +23,9 @@ static std::string write_tmp(const std::string &name, const std::string &content
     return name;
 }
 
+/**
+ * @brief Minimal assertion helper used by this test.
+ */
 static void expect(bool cond, const char *msg) {
     if (!cond) {
         std::fprintf(stderr, "[FAIL] %s\n", msg);
@@ -22,6 +33,7 @@ static void expect(bool cond, const char *msg) {
     }
 }
 
+/** @brief Entry point for config edge-case tests. */
 int main() {
     // Case-insensitive keys/values, whitespace, comments
     {
