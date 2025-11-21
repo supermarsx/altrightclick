@@ -31,7 +31,9 @@ int main() {
         expect(defaults.enabled == true, "enabled default true");
         expect(defaults.show_tray == true, "show_tray default true");
         expect(defaults.modifier_vk != 0u, "modifier default non-zero");
-        expect(defaults.exit_vk != 0u, "exit default non-zero");
+        expect(defaults.exit_hotkey_enabled == true, "exit hotkey enabled by default");
+        expect(!defaults.exit_hotkey_combo_vks.empty(), "exit combo default non-empty");
+        expect(defaults.exit_vk == defaults.exit_hotkey_combo_vks.front(), "exit vk mirrors combo head");
         expect(defaults.ignore_injected == true, "ignore_injected default true");
         expect(defaults.click_time_ms == 250u, "click_time_ms default 250");
         expect(defaults.move_radius_px == 6, "move_radius_px default 6");
@@ -42,7 +44,7 @@ int main() {
         const char *cfg = "enabled=false\n"
                           "show_tray=false\n"
                           "modifier=ALT+CTRL\n"
-                          "exit_key=F12\n"
+                          "exit_key=CTRL+ALT+Q\n"
                           "ignore_injected=false\n"
                           "click_time_ms=333\n"
                           "move_radius_px=9\n"
@@ -55,13 +57,25 @@ int main() {
         expect(c.show_tray == false, "show_tray parsed false");
         expect(!c.modifier_combo_vks.empty(), "modifier combo parsed");
         expect(c.modifier_combo_vks.size() == 2, "modifier combo size 2");
-        expect(c.exit_vk != 0u, "exit key parsed");
+        expect(c.exit_hotkey_combo_vks.size() == 3, "exit hotkey combo parsed");
+        expect(c.exit_hotkey_enabled == true, "exit hotkey enabled");
         expect(c.ignore_injected == false, "ignore_injected parsed false");
         expect(c.click_time_ms == 333u, "click_time_ms parsed 333");
         expect(c.move_radius_px == 9, "move_radius_px parsed 9");
         expect(c.trigger == Config::Trigger::X2, "trigger parsed X2");
         expect(c.log_level == std::string("debug"), "log_level parsed debug");
         expect(c.watch_config == true, "watch_config parsed true");
+        std::remove(path.c_str());
+    }
+
+    // Disabled exit hotkey
+    {
+        const char *cfg = "exit_key=DISABLED\n";
+        std::string path = write_temp_file("config_exit_disabled.ini", cfg);
+        Config c = arc::config::load(path);
+        expect(c.exit_hotkey_enabled == false, "exit hotkey disabled via config");
+        expect(c.exit_hotkey_combo_vks.empty(), "exit combo cleared when disabled");
+        expect(c.exit_vk == 0u, "exit vk cleared when disabled");
         std::remove(path.c_str());
     }
 
@@ -72,7 +86,9 @@ int main() {
         w.show_tray = true;
         w.modifier_combo_vks = {0x12 /*ALT*/, 0x11 /*CTRL*/};
         w.modifier_vk = 0x12;
-        w.exit_vk = 0x7B;  // F12
+        w.exit_hotkey_combo_vks = {VK_CONTROL, VK_MENU, static_cast<unsigned int>('Q')};
+        w.exit_vk = VK_CONTROL;
+        w.exit_hotkey_enabled = true;
         w.ignore_injected = true;
         w.click_time_ms = 123;
         w.move_radius_px = 7;
@@ -85,7 +101,8 @@ int main() {
         expect(r.enabled == w.enabled, "roundtrip enabled");
         expect(r.show_tray == w.show_tray, "roundtrip show_tray");
         expect(r.modifier_vk == w.modifier_vk, "roundtrip modifier_vk representative");
-        expect(r.exit_vk == w.exit_vk, "roundtrip exit_vk");
+        expect(r.exit_hotkey_combo_vks == w.exit_hotkey_combo_vks, "roundtrip exit combo");
+        expect(r.exit_hotkey_enabled == w.exit_hotkey_enabled, "roundtrip exit enabled flag");
         expect(r.ignore_injected == w.ignore_injected, "roundtrip ignore_injected");
         expect(r.click_time_ms == w.click_time_ms, "roundtrip click_time_ms");
         expect(r.move_radius_px == w.move_radius_px, "roundtrip move_radius_px");

@@ -34,6 +34,11 @@ struct Config {
     /// Exit key to stop the interactive app (ignored for service mode).
     unsigned int exit_vk = 0x1B;  // VK_ESCAPE
 
+    /// Exit hotkey enabled flag (allows disabling keyboard exit entirely).
+    bool exit_hotkey_enabled = true;
+    /// Optional combo of keys that must be pressed together to exit.
+    std::vector<unsigned int> exit_hotkey_combo_vks{0x1B};
+
     /// Ignore externally injected mouse events (LLMHF_INJECTED/LLMHF_LOWER_IL_INJECTED).
     bool ignore_injected = true;
 
@@ -58,6 +63,9 @@ struct Config {
 
     /// Live reload toggle for config file changes.
     bool watch_config = false;
+
+    /// When true, convert physical right-clicks into left-clicks (Mac-style single button).
+    bool disable_right_click = true;
 
     /// Enable background persistence monitor to restart the app if it crashes.
     /// Disabled by default. Only applies to interactive mode (not service).

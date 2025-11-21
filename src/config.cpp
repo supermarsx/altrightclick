@@ -77,20 +77,125 @@ static std::string trim(const std::string &s) {
  * @return unsigned int Virtual-key code on success, or 0 if the name is unknown.
  */
 static unsigned int vk_from_str(const std::string &name) {
-    std::string n = to_lower(name);
+    std::string n = to_lower(trim(name));
+    if (n.empty())
+        return 0;
     if (n == "alt")
         return VK_MENU;
     if (n == "ctrl" || n == "control")
         return VK_CONTROL;
     if (n == "shift")
         return VK_SHIFT;
-    if (n == "win" || n == "lwin")
+    if (n == "win" || n == "lwin" || n == "super")
         return VK_LWIN;
     if (n == "esc" || n == "escape")
         return VK_ESCAPE;
     if (n == "f12")
         return VK_F12;
+    if (n.size() == 1) {
+        char c = static_cast<char>(std::toupper(static_cast<unsigned char>(n[0])));
+        if (c >= 'A' && c <= 'Z')
+            return static_cast<unsigned int>(c);
+        if (c >= '0' && c <= '9')
+            return static_cast<unsigned int>(c);
+    }
+    if (n[0] == 'f' && n.size() <= 3) {
+        try {
+            int idx = std::stoi(n.substr(1));
+            if (idx >= 1 && idx <= 24)
+                return VK_F1 + static_cast<unsigned int>(idx - 1);
+        } catch (...) {
+        }
+    }
+    if (n == "space")
+        return VK_SPACE;
+    if (n == "tab")
+        return VK_TAB;
+    if (n == "enter" || n == "return")
+        return VK_RETURN;
+    if (n == "backspace" || n == "bksp")
+        return VK_BACK;
+    if (n == "delete" || n == "del")
+        return VK_DELETE;
+    if (n == "insert" || n == "ins")
+        return VK_INSERT;
+    if (n == "home")
+        return VK_HOME;
+    if (n == "end")
+        return VK_END;
+    if (n == "pgup" || n == "pageup")
+        return VK_PRIOR;
+    if (n == "pgdn" || n == "pagedown")
+        return VK_NEXT;
+    if (n == "up")
+        return VK_UP;
+    if (n == "down")
+        return VK_DOWN;
+    if (n == "left")
+        return VK_LEFT;
+    if (n == "right")
+        return VK_RIGHT;
+    if (n == "caps")
+        return VK_CAPITAL;
+    if (n == "pause" || n == "break")
+        return VK_PAUSE;
     return 0;  // unknown -> ignored by caller
+}
+
+static std::string vk_to_string(unsigned int vk) {
+    switch (vk) {
+    case VK_MENU:
+        return "ALT";
+    case VK_CONTROL:
+        return "CTRL";
+    case VK_SHIFT:
+        return "SHIFT";
+    case VK_LWIN:
+        return "WIN";
+    case VK_ESCAPE:
+        return "ESC";
+    case VK_TAB:
+        return "TAB";
+    case VK_SPACE:
+        return "SPACE";
+    case VK_RETURN:
+        return "ENTER";
+    case VK_BACK:
+        return "BACKSPACE";
+    case VK_DELETE:
+        return "DELETE";
+    case VK_INSERT:
+        return "INSERT";
+    case VK_HOME:
+        return "HOME";
+    case VK_END:
+        return "END";
+    case VK_PRIOR:
+        return "PGUP";
+    case VK_NEXT:
+        return "PGDN";
+    case VK_UP:
+        return "UP";
+    case VK_DOWN:
+        return "DOWN";
+    case VK_LEFT:
+        return "LEFT";
+    case VK_RIGHT:
+        return "RIGHT";
+    case VK_PAUSE:
+        return "PAUSE";
+    case VK_CAPITAL:
+        return "CAPS";
+    default:
+        break;
+    }
+    if (vk >= 'A' && vk <= 'Z')
+        return std::string(1, static_cast<char>(vk));
+    if (vk >= '0' && vk <= '9')
+        return std::string(1, static_cast<char>(vk));
+    if (vk >= VK_F1 && vk <= VK_F24)
+        return "F" + std::to_string(vk - VK_F1 + 1);
+    return "";
 }
 
 /**
@@ -104,13 +209,13 @@ static unsigned int vk_from_str(const std::string &name) {
  * @param val Input modifier string from the config file.
  * @param out Pointer to a vector<unsigned int> to receive the parsed VK codes.
  */
-static void parse_modifier_combo(const std::string &val, std::vector<unsigned int> *out) {
+static void parse_vk_combo(const std::string &val, std::vector<unsigned int> *out) {
     out->clear();
     std::string tmp;
     for (size_t i = 0; i <= val.size(); ++i) {
         char c = (i < val.size()) ? val[i] : ',';  // treat end as delimiter
         if (c == '+' || c == ',') {
-            std::string tok = to_lower(trim(tmp));
+            std::string tok = trim(tmp);
             if (!tok.empty()) {
                 unsigned int vk = vk_from_str(tok);
                 if (vk)
@@ -142,6 +247,19 @@ static Config::Trigger trigger_from_str(const std::string &name) {
     if (n == "x2" || n == "xbutton2")
         return Config::Trigger::X2;
     return Config::Trigger::Left;
+}
+
+static std::string combo_to_string(const std::vector<unsigned int> &combo) {
+    std::string out;
+    for (auto vk : combo) {
+        std::string name = vk_to_string(vk);
+        if (name.empty())
+            continue;
+        if (!out.empty())
+            out += "+";
+        out += name;
+    }
+    return out;
 }
 
 /**
@@ -180,7 +298,7 @@ Config load(const std::filesystem::path &path) {
         } else if (key == "modifier") {
             // Allow combos: ALT+CTRL or ALT,CTRL; also back-compat single key
             std::vector<unsigned int> mods;
-            parse_modifier_combo(val, &mods);
+            parse_vk_combo(val, &mods);
             if (!mods.empty()) {
                 cfg.modifier_combo_vks = mods;
                 cfg.modifier_vk = mods.front();
@@ -192,11 +310,30 @@ Config load(const std::filesystem::path &path) {
         } else if (key == "trigger") {
             cfg.trigger = trigger_from_str(val);
         } else if (key == "exit_key") {
-            unsigned int vk = vk_from_str(val);
-            if (vk)
-                cfg.exit_vk = vk;
+            if (vall == "disabled" || vall == "none" || vall == "false" || vall == "0" || vall == "off") {
+                cfg.exit_hotkey_enabled = false;
+                cfg.exit_hotkey_combo_vks.clear();
+                cfg.exit_vk = 0;
+            } else {
+                std::vector<unsigned int> combo;
+                parse_vk_combo(val, &combo);
+                if (!combo.empty()) {
+                    cfg.exit_hotkey_enabled = true;
+                    cfg.exit_hotkey_combo_vks = combo;
+                    cfg.exit_vk = combo.front();
+                } else {
+                    unsigned int vk = vk_from_str(val);
+                    if (vk) {
+                        cfg.exit_hotkey_enabled = true;
+                        cfg.exit_hotkey_combo_vks = {vk};
+                        cfg.exit_vk = vk;
+                    }
+                }
+            }
         } else if (key == "ignore_injected") {
             cfg.ignore_injected = (vall == "1" || vall == "true" || vall == "yes");
+        } else if (key == "disable_right_click") {
+            cfg.disable_right_click = (vall == "1" || vall == "true" || vall == "yes");
         } else if (key == "click_time_ms") {
             try {
                 unsigned int v = static_cast<unsigned int>(std::stoul(vall));
@@ -322,52 +459,32 @@ bool save(const std::filesystem::path &path, const Config &cfg) {
     out << "enabled=" << (cfg.enabled ? "true" : "false") << "\n\n";
     out << "# Show tray icon with runtime settings (true/false)\n";
     out << "show_tray=" << (cfg.show_tray ? "true" : "false") << "\n\n";
-    // Map modifier back to string
-    std::string mod = "ALT";
-    if (cfg.modifier_vk == VK_CONTROL)
-        mod = "CTRL";
-    else if (cfg.modifier_vk == VK_SHIFT)
-        mod = "SHIFT";
-    else if (cfg.modifier_vk == VK_LWIN)
-        mod = "WIN";
+    // Map modifier back to string/combo
+    std::string mod = combo_to_string(cfg.modifier_combo_vks);
+    if (mod.empty()) {
+        mod = vk_to_string(cfg.modifier_vk);
+    }
+    if (mod.empty())
+        mod = "ALT";
     out << "# Modifier key for translating left-click to right-click (ALT|CTRL|SHIFT|WIN)\n";
     out << "# Multiple modifiers allowed; e.g., ALT+CTRL or ALT,CTRL\n";
-    // Recompose from combo if present
-    if (!cfg.modifier_combo_vks.empty()) {
-        auto to_name = [](unsigned int vk) {
-            if (vk == VK_MENU)
-                return "ALT";
-            if (vk == VK_CONTROL)
-                return "CTRL";
-            if (vk == VK_SHIFT)
-                return "SHIFT";
-            if (vk == VK_LWIN)
-                return "WIN";
-            return "";
-        };
-        std::string combo;
-        for (size_t i = 0; i < cfg.modifier_combo_vks.size(); ++i) {
-            std::string t = to_name(cfg.modifier_combo_vks[i]);
-            if (t.empty())
-                continue;
-            if (!combo.empty())
-                combo += "+";
-            combo += t;
-        }
-        if (!combo.empty()) {
-            out << "modifier=" << combo << "\n\n";
-        } else {
-            out << "modifier=" << mod << "\n\n";
-        }
+    out << "modifier=" << mod << "\n\n";
+    // Exit hotkey
+    out << "# Exit hotkey to stop the app (e.g., ESC, CTRL+ALT+Q). Set to DISABLED to turn off.\n";
+    if (!cfg.exit_hotkey_enabled || cfg.exit_hotkey_combo_vks.empty()) {
+        out << "exit_key=DISABLED\n\n";
     } else {
-        out << "modifier=" << mod << "\n\n";
+        std::string exitk = combo_to_string(cfg.exit_hotkey_combo_vks);
+        if (exitk.empty())
+            exitk = vk_to_string(cfg.exit_vk);
+        if (exitk.empty())
+            exitk = "ESC";
+        out << "exit_key=" << exitk << "\n\n";
     }
-    // Exit key
-    std::string exitk = (cfg.exit_vk == VK_F12) ? "F12" : "ESC";
-    out << "# Exit key to stop the app when not running as a service (ESC|F12)\n";
-    out << "exit_key=" << exitk << "\n\n";
     out << "# Ignore externally injected events (true/false)\n";
     out << "ignore_injected=" << (cfg.ignore_injected ? "true" : "false") << "\n\n";
+    out << "# Treat physical right-clicks as left-clicks (true/false)\n";
+    out << "disable_right_click=" << (cfg.disable_right_click ? "true" : "false") << "\n\n";
     out << "# Max press duration in milliseconds to translate as a click (10-5000)\n";
     out << "click_time_ms=" << cfg.click_time_ms << "\n\n";
     out << "# Max pointer movement radius in pixels to still translate as click (0-100)\n";

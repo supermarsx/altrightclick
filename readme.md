@@ -28,11 +28,13 @@ CI Status
 ## Features
 - Alt + Left Click triggers a Right Click (default ALT modifier)
 - Configurable modifier and exit key via simple `config.ini`
+- Exit hotkey supports multi-key combos (e.g., `CTRL+ALT+Q`) and can be disabled entirely
 - Tray icon with basic context menu (Exit)
 - CLI for service install/uninstall/start/stop
 - 64-bit x64 and ARM64 builds via CMake (VS 2022)
 - Modular code: separate headers under `include/arc` and sources in `src`
- - Single-instance guard to prevent multiple concurrent instances
+- Single-instance guard to prevent multiple concurrent instances
+- Optional Mac-style single-button mode that disables the physical right-click and treats both buttons as left-clicks (configurable)
 
 ## Quick Start
 - Run interactively with tray: place `altrightclick.exe` somewhere and run it. Press `ESC` to exit (configurable).
@@ -88,9 +90,10 @@ Keys (case-insensitive):
 - `show_tray=true|false` (default: true)
 - `modifier=ALT|CTRL|SHIFT|WIN` (default: ALT)
  - `modifier=ALT|CTRL|SHIFT|WIN` (default: ALT). Multiple allowed via `+` or `,` (e.g., `ALT+CTRL`).
-- `exit_key=ESC|F12` (default: ESC)
-- `ignore_injected=true|false` (default: true) — ignore externally injected mouse events
-- `click_time_ms=<uint>` (default: 250) — max press duration to translate click
+- `exit_key=<key|combo|DISABLED>` (default: ESC) - accept single keys or combos like `CTRL+ALT+Q`; set to `DISABLED` to turn off the keyboard exit
+- `ignore_injected=true|false` (default: true) - ignore externally injected mouse events
+- `disable_right_click=true|false` (default: true) - convert physical right-clicks into left-clicks, forcing Alt+Left (or configured modifier) for context menus
+- `click_time_ms=<uint>` (default: 250) - max press duration to translate click
 - `move_radius_px=<int>` (default: 6) — max pointer movement radius to still translate as click
 - `log_level=error|warn|info|debug` (default: info)
 - `log_file=<path>` (default: empty; console only)

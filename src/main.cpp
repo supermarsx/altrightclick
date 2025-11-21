@@ -9,6 +9,7 @@
 #include <thread>
 #include <atomic>
 #include <filesystem>
+#include <vector>
 
 #include "arc/hook.h"
 #include "arc/tray.h"
@@ -53,6 +54,28 @@ static BOOL WINAPI console_ctrl_handler(DWORD ctrl_type) {
         break;
     }
     return FALSE;
+}
+
+/** Returns true if every virtual key in the combo is currently pressed. */
+static bool is_hotkey_pressed(const std::vector<unsigned int> &combo) {
+    if (combo.empty())
+        return false;
+    for (auto vk : combo) {
+        if ((GetAsyncKeyState(static_cast<int>(vk)) & 0x8000) == 0)
+            return false;
+    }
+    return true;
+}
+
+/** Checks the configured exit hotkey (single key or combo). */
+static bool exit_hotkey_pressed(const arc::config::Config &cfg) {
+    if (!cfg.exit_hotkey_enabled)
+        return false;
+    if (is_hotkey_pressed(cfg.exit_hotkey_combo_vks))
+        return true;
+    if (cfg.exit_hotkey_combo_vks.empty() && cfg.exit_vk)
+        return (GetAsyncKeyState(static_cast<int>(cfg.exit_vk)) & 0x8000) != 0;
+    return false;
 }
 
 /** Returns true if a wide-path file exists. */
@@ -367,7 +390,7 @@ int main(int argc, char **argv) {
             break;
         if (g_console_shutdown.load())
             break;
-        if (cfg.exit_vk && (GetAsyncKeyState(static_cast<int>(cfg.exit_vk)) & 0x8000))
+        if (exit_hotkey_pressed(cfg))
             break;
         Sleep(50);
     }

@@ -39,7 +39,8 @@ int main() {
         expect(c.enabled == false, "enabled parsed false (case-insensitive)");
         expect(c.show_tray == true, "show_tray parsed true");
         expect(c.modifier_combo_vks.size() == 2, "modifier combo via commas and whitespace");
-        expect(c.exit_vk != 0u, "exit esc parsed");
+        expect(c.exit_hotkey_enabled == true, "exit hotkey enabled");
+        expect(!c.exit_hotkey_combo_vks.empty(), "exit combo parsed");
         expect(c.trigger == Config::Trigger::Middle, "trigger synonyms parsed (mbutton->Middle)");
         expect(c.click_time_ms == 250u, "out-of-range click_time_ms ignored -> default 250");
         expect(c.move_radius_px == 6, "negative radius ignored -> default 6");

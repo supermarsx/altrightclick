@@ -33,6 +33,7 @@ struct HookState {
 
 std::atomic<bool> g_enabled{true};               ///< Master enable flag.
 bool g_ignore_injected = true;                   ///< Skip externally injected events.
+std::atomic<bool> g_disable_right_click{true};   ///< When true, convert right-clicks into left-clicks.
 const ULONG_PTR kArcInjectedTag = 0xA17C1C00;    ///< Tag for events we inject via SendInput.
 
 std::atomic<bool> g_hookRunning{false};          ///< Worker thread running flag.
@@ -86,6 +87,17 @@ LRESULT CALLBACK LowLevelMouseProc(int nCode, WPARAM wParam, LPARAM lParam) {
         // Ignore or treat cautiously any injected events from other processes or lower IL
         if (g_ignore_injected && pMouse && (pMouse->flags & (LLMHF_INJECTED | LLMHF_LOWER_IL_INJECTED))) {
             return CallNextHookEx(g_state.mouse_hook.load(), nCode, wParam, lParam);
+        }
+
+        if (g_disable_right_click.load()) {
+            if (wParam == WM_RBUTTONDOWN || wParam == WM_RBUTTONUP) {
+                INPUT in{};
+                in.type = INPUT_MOUSE;
+                in.mi.dwFlags = (wParam == WM_RBUTTONDOWN) ? MOUSEEVENTF_LEFTDOWN : MOUSEEVENTF_LEFTUP;
+                in.mi.dwExtraInfo = kArcInjectedTag;
+                SendInput(1, &in, sizeof(INPUT));
+                return 1;
+            }
         }
 
         // Returns true when all configured modifiers are held down. If no combo
@@ -223,6 +235,7 @@ void apply_hook_config(const arc::config::Config &cfg) {
     g_modifier_combo = cfg.modifier_combo_vks;
     g_enabled.store(cfg.enabled);
     g_ignore_injected = cfg.ignore_injected;
+    g_disable_right_click.store(cfg.disable_right_click);
     g_clickTimeMs = cfg.click_time_ms;
     g_moveRadius = cfg.move_radius_px;
     g_trigger = cfg.trigger;
