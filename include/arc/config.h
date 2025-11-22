@@ -46,6 +46,8 @@ struct Config {
     std::string log_level = "info";
     /// Optional log file path; empty for console only.
     std::string log_file;
+    /// Include thread id in log lines (for debugging concurrent threads).
+    bool log_thread_id = false;
 
     /// Source button that triggers translation.
     enum class Trigger {

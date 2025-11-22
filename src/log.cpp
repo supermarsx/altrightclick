@@ -24,6 +24,7 @@
 #include <string>
 #include <utility>
 #include <cstdio>
+#include <atomic>
 
 namespace {
 std::mutex g_logMutex;
@@ -35,6 +36,7 @@ std::thread g_thread;
 std::condition_variable g_cv;
 bool g_stop = false;
 std::deque<std::string> g_queue;
+std::atomic<bool> g_includeThreadId{false};
 
 /** Returns canonical uppercase name for a log level. */
 std::string level_name(arc::log::LogLevel lvl) {
@@ -159,6 +161,21 @@ void stop_async() {
     g_async = false;
 }
 
+/** Toggle inclusion of thread ids in each log line. */
+void set_include_thread_id(bool enabled) { g_includeThreadId.store(enabled, std::memory_order_release); }
+
+LogScope::LogScope(const char *name, LogLevel lvl) : name_(name ? name : ""), level_(lvl), active_(true) {
+    if (!name_.empty()) {
+        write(level_, name_ + " begin");
+    }
+}
+
+LogScope::~LogScope() {
+    if (active_ && !name_.empty()) {
+        write(level_, name_ + " end");
+    }
+}
+
 /**
  * Emits a single log line at the given severity.
  * Writes to stdout/stderr and optionally to a log file. If async mode is
@@ -168,7 +185,11 @@ void write(LogLevel lvl, const std::string &msg) {
     if (static_cast<int>(lvl) > static_cast<int>(g_level))
         return;
     std::ostringstream line;
-    line << '[' << timestamp() << "] [" << level_name(lvl) << "] " << msg << '\n';
+    line << '[' << timestamp() << "] [" << level_name(lvl) << ']';
+    if (g_includeThreadId.load(std::memory_order_acquire)) {
+        line << " [T:" << GetCurrentThreadId() << ']';
+    }
+    line << ' ' << msg << '\n';
     auto s = line.str();
     if (g_async) {
         std::lock_guard<std::mutex> lk(g_logMutex);
@@ -187,4 +208,3 @@ void write(LogLevel lvl, const std::string &msg) {
 }
 
 }  // namespace arc::log
-

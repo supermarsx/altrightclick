@@ -104,6 +104,18 @@ HMENU create_tray_menu(const arc::tray::TrayContext *ctx) {
 }
 
 /**
+ * @brief Persist configuration changes driven from the tray menu.
+ */
+static void persist_config_if_possible(const arc::tray::TrayContext *ctx) {
+    if (!ctx || ctx->config_path.empty())
+        return;
+    if (!arc::config::save(ctx->config_path, ctx->cfg)) {
+        arc::log::error("Tray: failed to save configuration to " + ctx->config_path.u8string());
+        arc::tray::notify(L"altrightclick", L"Failed to save config. Check disk permissions.");
+    }
+}
+
+/**
  * @brief Convert a UTF-8 encoded std::string to a UTF-16 std::wstring.
  *
  * Uses the Win32 API MultiByteToWideChar with code page CP_UTF8 to perform the
@@ -201,31 +213,37 @@ LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
                 case kMenuToggleEnabled:
                     ctx->cfg.enabled = !ctx->cfg.enabled;
                     arc::hook::apply_hook_config(ctx->cfg);
+                    persist_config_if_possible(ctx);
                     arc::tray::notify(L"altrightclick", ctx->cfg.enabled ? L"Enabled" : L"Disabled");
                     break;
                 case kMenuClickTimeInc:
                     ctx->cfg.click_time_ms =
                         static_cast<unsigned int>(std::min<int>(ctx->cfg.click_time_ms + 10, 5000));
                     arc::hook::apply_hook_config(ctx->cfg);
+                    persist_config_if_possible(ctx);
                     break;
                 case kMenuClickTimeDec:
                     ctx->cfg.click_time_ms =
                         static_cast<unsigned int>(std::max<int>(static_cast<int>(ctx->cfg.click_time_ms) - 10, 10));
                     arc::hook::apply_hook_config(ctx->cfg);
+                    persist_config_if_possible(ctx);
                     break;
                 case kMenuMoveRadiusInc:
                     ctx->cfg.move_radius_px =
                         static_cast<unsigned int>(std::min<int>(static_cast<int>(ctx->cfg.move_radius_px) + 1, 100));
                     arc::hook::apply_hook_config(ctx->cfg);
+                    persist_config_if_possible(ctx);
                     break;
                 case kMenuMoveRadiusDec:
                     ctx->cfg.move_radius_px =
                         static_cast<unsigned int>(std::max<int>(static_cast<int>(ctx->cfg.move_radius_px) - 1, 0));
                     arc::hook::apply_hook_config(ctx->cfg);
+                    persist_config_if_possible(ctx);
                     break;
                 case kMenuToggleIgnoreInjected:
                     ctx->cfg.ignore_injected = !ctx->cfg.ignore_injected;
                     arc::hook::apply_hook_config(ctx->cfg);
+                    persist_config_if_possible(ctx);
                     break;
                 case kMenuTogglePersistence: {
                     bool was = ctx->cfg.persistence_enabled;
@@ -242,6 +260,7 @@ LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
                         arc::tray::notify(L"altrightclick",
                                           stopped ? L"Persistence monitor stopped" : L"No monitor running");
                     }
+                    persist_config_if_possible(ctx);
                     break;
                 }
                 case kMenuSaveConfig:

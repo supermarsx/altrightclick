@@ -45,7 +45,8 @@ int main() {
                           "  exit_key = esc \n"
                           "  trigger = mbutton \n"
                           "  click_time_ms = 99999  \n"  // ignored (out of range)
-                          "  move_radius_px = -2 \n";    // ignored (out of range), stays default
+                          "  move_radius_px = -2 \n"     // ignored (out of range), stays default
+                          "  log_thread_id = TRUE\n";
         std::string path = write_tmp("config_edge_case.ini", cfg);
         Config c = arc::config::load(path);
         expect(c.enabled == false, "enabled parsed false (case-insensitive)");
@@ -55,6 +56,7 @@ int main() {
         expect(c.trigger == Config::Trigger::Middle, "trigger synonyms parsed (mbutton->Middle)");
         expect(c.click_time_ms == 250u, "out-of-range click_time_ms ignored -> default 250");
         expect(c.move_radius_px == 6, "negative radius ignored -> default 6");
+        expect(c.log_thread_id == true, "log_thread_id parsed case-insensitive true");
         std::remove(path.c_str());
     }
 

@@ -72,6 +72,34 @@ void stop_async();
 std::string last_error_message(uint32_t err);
 
 /**
+ * @brief Enables or disables inclusion of Windows thread ids in log lines.
+ *
+ * @param enabled True to append `[T:<thread-id>]` to each message.
+ */
+void set_include_thread_id(bool enabled);
+
+/**
+ * @brief RAII helper that logs scope entry/exit automatically.
+ *
+ * Constructing the scope emits "<name> begin" at the requested severity and
+ * destroying it emits "<name> end". Useful for tracing critical sections.
+ */
+class LogScope {
+ public:
+    LogScope(const char *name, LogLevel lvl = LogLevel::Debug);
+    ~LogScope();
+
+ private:
+    std::string name_;
+    LogLevel level_;
+    bool active_ = false;
+};
+
+#define ARC_LOG_CONCAT_INNER(a, b) a##b
+#define ARC_LOG_CONCAT(a, b) ARC_LOG_CONCAT_INNER(a, b)
+#define ARC_LOG_SCOPE(name) ::arc::log::LogScope ARC_LOG_CONCAT(_arc_scope_, __LINE__)(name)
+
+/**
  * @brief Emits a log line at the given severity.
  *
  * In async mode, enqueues the line; otherwise writes synchronously.

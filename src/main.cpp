@@ -9,6 +9,11 @@
 #include <thread>
 #include <atomic>
 #include <filesystem>
+#include <sstream>
+#include <iomanip>
+#include <chrono>
+#include <ctime>
+#include <cstdio>
 
 #include "arc/hook.h"
 #include "arc/tray.h"
@@ -72,6 +77,72 @@ static bool is_safe_arg_utf8(const std::string &s) {
     return true;
 }
 
+/** Returns a readable name for the configured trigger. */
+static const char *trigger_name(arc::config::Config::Trigger t) {
+    switch (t) {
+    case arc::config::Config::Trigger::Left:
+        return "LEFT";
+    case arc::config::Config::Trigger::Middle:
+        return "MIDDLE";
+    case arc::config::Config::Trigger::X1:
+        return "X1";
+    case arc::config::Config::Trigger::X2:
+        return "X2";
+    }
+    return "UNKNOWN";
+}
+
+/** Escapes arbitrary UTF-8 for safe JSON string output. */
+static std::string escape_json(const std::string &s) {
+    std::string out;
+    out.reserve(s.size() + 8);
+    for (unsigned char c : s) {
+        switch (c) {
+        case '\\':
+            out += "\\\\";
+            break;
+        case '"':
+            out += "\\\"";
+            break;
+        case '\b':
+            out += "\\b";
+            break;
+        case '\f':
+            out += "\\f";
+            break;
+        case '\n':
+            out += "\\n";
+            break;
+        case '\r':
+            out += "\\r";
+            break;
+        case '\t':
+            out += "\\t";
+            break;
+        default:
+            if (c < 0x20) {
+                char buf[7];
+                std::snprintf(buf, sizeof(buf), "\\u%04X", c);
+                out += buf;
+            } else {
+                out.push_back(static_cast<char>(c));
+            }
+            break;
+        }
+    }
+    return out;
+}
+
+/** Formats a system_clock time in ISO-8601 UTC (e.g., 2024-05-15T12:00:00Z). */
+static std::string to_iso8601(const std::chrono::system_clock::time_point &tp) {
+    std::time_t tt = std::chrono::system_clock::to_time_t(tp);
+    std::tm tm{};
+    gmtime_s(&tm, &tt);
+    char buf[32];
+    std::strftime(buf, sizeof(buf), "%Y-%m-%dT%H:%M:%SZ", &tm);
+    return buf;
+}
+
 /** Returns true if the current process has elevated (admin) token. */
 static bool is_elevated() {
     HANDLE token = nullptr;
@@ -116,6 +187,8 @@ static void print_help() {
                  "  --task-uninstall       Uninstall Scheduled Task\n"
                  "  --task-update          Update Scheduled Task target/args\n"
                  "  --task-status          Check if Scheduled Task exists\n"
+                 "  --status               Print human-readable runtime/config status\n"
+                 "  --status-json          Print status as JSON (mutually implies --status)\n"
                  "  --help                 Show this help\n";
 }
 
@@ -130,6 +203,8 @@ int main(int argc, char **argv) {
     bool launched_by_monitor = false;
     unsigned long monitor_parent_pid = 0;
     bool do_task_install = false, do_task_uninstall = false, do_task_update = false, do_task_status = false;
+    bool do_status = false;
+    bool do_status_json = false;
     std::string cli_log_level;
     std::string cli_log_file;
     bool do_generate_config = false;
@@ -174,6 +249,11 @@ int main(int argc, char **argv) {
             run_as_monitor = true;
         } else if (a == "--parent" && i + 1 < argc) {
             try { monitor_parent_pid = static_cast<unsigned long>(std::stoul(argv[++i])); } catch (...) { monitor_parent_pid = 0; }
+        } else if (a == "--status") {
+            do_status = true;
+        } else if (a == "--status-json") {
+            do_status = true;
+            do_status_json = true;
         } else if (a == "--help" || a == "-h" || a == "-?") {
             print_help();
             return 0;
@@ -187,6 +267,7 @@ int main(int argc, char **argv) {
     }
 
     const std::wstring svcName = L"AltRightClickService";
+    const std::wstring taskName = L"AltRightClickTask";
 
     // Generate config and exit
     if (do_generate_config) {
@@ -237,7 +318,6 @@ int main(int argc, char **argv) {
     }
 
     // Scheduled Task management
-    const std::wstring taskName = L"AltRightClickTask";
     if (do_task_install || do_task_uninstall || do_task_update || do_task_status) {
         std::wstring exe = get_module_path();
         std::wstring cmd = L"\"" + exe + L"\"";
@@ -258,6 +338,74 @@ int main(int argc, char **argv) {
         }
         std::cout << (ok ? "OK" : "FAILED") << std::endl;
         return ok ? 0 : 1;
+    }
+
+    if (do_status) {
+        bool cfg_exists = std::filesystem::exists(config_path);
+        arc::config::Config status_cfg;
+        if (cfg_exists) {
+            status_cfg = arc::config::load(config_path);
+        }
+        bool interactive_running = false;
+        {
+            arc::singleton::SingletonGuard probe(arc::singleton::default_name());
+            interactive_running = !probe.acquired();
+        }
+        bool monitor_running = arc::persistence::is_monitor_running();
+        bool service_running = arc::service::is_running(svcName);
+        bool task_present = arc::task::exists(taskName);
+        auto history = arc::persistence::restart_history();
+        std::string history_last = history.empty() ? "" : to_iso8601(history.back());
+        auto bool_word = [](bool v) { return v ? "true" : "false"; };
+        if (do_status_json) {
+            std::ostringstream oss;
+            oss << "{";
+            oss << "\"config_path\":\"" << escape_json(config_path) << "\",";
+            oss << "\"config_exists\":" << (cfg_exists ? "true" : "false") << ",";
+            oss << "\"enabled\":" << (status_cfg.enabled ? "true" : "false") << ",";
+            oss << "\"show_tray\":" << (status_cfg.show_tray ? "true" : "false") << ",";
+            oss << "\"modifier_vk\":" << status_cfg.modifier_vk << ",";
+            oss << "\"modifier_combo_vks\":[";
+            for (size_t i = 0; i < status_cfg.modifier_combo_vks.size(); ++i) {
+                if (i)
+                    oss << ",";
+                oss << status_cfg.modifier_combo_vks[i];
+            }
+            oss << "],";
+            oss << "\"trigger\":\"" << trigger_name(status_cfg.trigger) << "\",";
+            oss << "\"watch_config\":" << (status_cfg.watch_config ? "true" : "false") << ",";
+            oss << "\"log_thread_id\":" << (status_cfg.log_thread_id ? "true" : "false") << ",";
+            oss << "\"persistence_enabled\":" << (status_cfg.persistence_enabled ? "true" : "false") << ",";
+            oss << "\"interactive_running\":" << (interactive_running ? "true" : "false") << ",";
+            oss << "\"service_running\":" << (service_running ? "true" : "false") << ",";
+            oss << "\"scheduled_task_present\":" << (task_present ? "true" : "false") << ",";
+            oss << "\"monitor_running\":" << (monitor_running ? "true" : "false") << ",";
+            oss << "\"restart_history_count\":" << history.size() << ",";
+            oss << "\"restart_history_last\":";
+            if (history.empty())
+                oss << "null";
+            else
+                oss << "\"" << escape_json(history_last) << "\"";
+            oss << "}";
+            std::cout << oss.str() << std::endl;
+        } else {
+            std::cout << "config_path=" << config_path << (cfg_exists ? "" : " (missing)") << "\n";
+            std::cout << "enabled=" << bool_word(status_cfg.enabled) << "\n";
+            std::cout << "show_tray=" << bool_word(status_cfg.show_tray) << "\n";
+            std::cout << "modifier_vk=0x" << std::hex << status_cfg.modifier_vk << std::dec << "\n";
+            std::cout << "modifier_combo_count=" << status_cfg.modifier_combo_vks.size() << "\n";
+            std::cout << "trigger=" << trigger_name(status_cfg.trigger) << "\n";
+            std::cout << "watch_config=" << bool_word(status_cfg.watch_config) << "\n";
+            std::cout << "log_thread_id=" << bool_word(status_cfg.log_thread_id) << "\n";
+            std::cout << "persistence_enabled=" << bool_word(status_cfg.persistence_enabled) << "\n";
+            std::cout << "interactive_running=" << bool_word(interactive_running) << "\n";
+            std::cout << "service_running=" << bool_word(service_running) << "\n";
+            std::cout << "scheduled_task_present=" << bool_word(task_present) << "\n";
+            std::cout << "monitor_running=" << bool_word(monitor_running) << "\n";
+            std::cout << "restart_history_count=" << history.size() << "\n";
+            std::cout << "restart_history_last=" << (history.empty() ? "none" : history_last) << "\n";
+        }
+        return 0;
     }
 
     if (run_as_service) {
@@ -289,6 +437,7 @@ int main(int argc, char **argv) {
     if (cli_persistence != -1)
         cfg.persistence_enabled = (cli_persistence == 1);
     arc::log::set_level_by_name(cfg.log_level);
+    arc::log::set_include_thread_id(cfg.log_thread_id);
     if (!cfg.log_file.empty())
         arc::log::set_file(cfg.log_file);
     arc::log::info(std::string("altrightclick ") + ARC_VERSION);
@@ -348,6 +497,7 @@ int main(int argc, char **argv) {
                     if (!cli_log_file.empty())
                         newCfg.log_file = cli_log_file;
                     arc::log::set_level_by_name(newCfg.log_level);
+                    arc::log::set_include_thread_id(newCfg.log_thread_id);
                     if (!newCfg.log_file.empty())
                         arc::log::set_file(newCfg.log_file);
                     arc::hook::apply_hook_config(newCfg);

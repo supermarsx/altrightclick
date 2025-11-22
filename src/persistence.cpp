@@ -14,6 +14,9 @@
 #include <chrono>
 #include <thread>
 #include <atomic>
+#include <filesystem>
+#include <fstream>
+#include <algorithm>
 
 #include "arc/log.h"
 #include "arc/config.h"
@@ -90,18 +93,6 @@ bool is_monitor_running() {
     return running;
 }
 
-/**
- * @brief Attempt to stop the monitor gracefully, falling back to termination.
- *
- * @param timeout_ms Maximum wait time for graceful shutdown.
- * @return true if the monitor stopped (gracefully or via termination).
- */
-/**
- * @brief Attempt to stop the monitor gracefully, falling back to termination.
- *
- * @param timeout_ms Maximum wait time for graceful shutdown.
- * @return true if the monitor stopped (gracefully or via termination).
- */
 bool stop_monitor_graceful(unsigned int timeout_ms) {
     DWORD pid = g_monitorPid.load();
     // Signal stop event named by current process id (parent id used by monitor)
@@ -174,6 +165,55 @@ static DWORD spawn_child(const std::wstring &exe_path, const std::wstring &confi
 /**
  * @brief Entry point for the monitor child process.
  */
+
+/**
+ * @brief Compute the restart-history log path.
+ */
+static std::filesystem::path restart_history_path() {
+    return std::filesystem::path(appdata_dir()) / "restart_history.log";
+}
+
+/**
+ * @brief Load restart timestamps from persistent storage.
+ */
+static std::vector<std::chrono::system_clock::time_point> load_restart_history(const std::filesystem::path &path) {
+    std::vector<std::chrono::system_clock::time_point> entries;
+    std::ifstream in(path);
+    if (!in.is_open())
+        return entries;
+    std::string line;
+    while (std::getline(in, line)) {
+        try {
+            long long secs = std::stoll(line);
+            entries.emplace_back(std::chrono::system_clock::time_point(std::chrono::seconds(secs)));
+        } catch (...) {
+        }
+    }
+    return entries;
+}
+
+/**
+ * @brief Persist restart timestamps for future monitor invocations.
+ */
+static void save_restart_history(const std::filesystem::path &path,
+                                 const std::vector<std::chrono::system_clock::time_point> &entries) {
+    std::ofstream out(path, std::ios::trunc);
+    if (!out.is_open())
+        return;
+    for (auto &tp : entries) {
+        auto secs = std::chrono::duration_cast<std::chrono::seconds>(tp.time_since_epoch()).count();
+        out << secs << "\n";
+    }
+}
+
+/**
+ * @brief Delete the restart history log (used on clean shutdown).
+ */
+static void clear_restart_history(const std::filesystem::path &path) {
+    std::error_code ec;
+    std::filesystem::remove(path, ec);
+}
+
 int run_monitor(unsigned long parent_pid, const std::wstring &exe_path, const std::wstring &config_path) {
     // Load persistence tuning from config if provided
     int maxRestarts = 5;
@@ -205,7 +245,8 @@ int run_monitor(unsigned long parent_pid, const std::wstring &exe_path, const st
     // Restart loop with simple backoff and restart cap
     const int kMaxRestarts = maxRestarts;
     const auto kWindow = std::chrono::seconds(windowSec);
-    std::vector<std::chrono::steady_clock::time_point> restarts;
+    std::filesystem::path history_path = restart_history_path();
+    std::vector<std::chrono::system_clock::time_point> restarts = load_restart_history(history_path);
     std::chrono::milliseconds backoff(backoffMs);
     const std::chrono::milliseconds backoff_max(backoffMaxMs);
 
@@ -216,9 +257,13 @@ int run_monitor(unsigned long parent_pid, const std::wstring &exe_path, const st
             DeleteFileW(p.c_str());
         }
         // Enforce max restarts in window
-        auto now = std::chrono::steady_clock::now();
+        auto now = std::chrono::system_clock::now();
+        size_t before = restarts.size();
         restarts.erase(std::remove_if(restarts.begin(), restarts.end(), [&](auto t) { return now - t > kWindow; }),
                        restarts.end());
+        if (restarts.size() != before) {
+            save_restart_history(history_path, restarts);
+        }
         if (static_cast<int>(restarts.size()) >= kMaxRestarts) {
             arc::log::warn("persistence: too many restarts; sleeping for a minute");
             std::this_thread::sleep_for(kWindow);
@@ -238,6 +283,7 @@ int run_monitor(unsigned long parent_pid, const std::wstring &exe_path, const st
         DWORD wr = WaitForMultipleObjects(2, hsChild, FALSE, INFINITE);
         if (wr == WAIT_OBJECT_0 + 1) {
             CloseHandle(pi.hProcess);
+            clear_restart_history(history_path);
             CloseHandle(hStop);
             return 0;
         }
@@ -260,11 +306,13 @@ int run_monitor(unsigned long parent_pid, const std::wstring &exe_path, const st
             break;
         }
         arc::log::warn("persistence: child exited abnormally; restarting...");
-        restarts.push_back(std::chrono::steady_clock::now());
+        restarts.push_back(std::chrono::system_clock::now());
+        save_restart_history(history_path, restarts);
         std::this_thread::sleep_for(backoff);
         backoff = std::min(backoff * 2, backoff_max);
     }
 
+    clear_restart_history(history_path);
     CloseHandle(hStop);
     return 0;
 }
@@ -304,5 +352,9 @@ void write_intent_marker() {
     if (h != INVALID_HANDLE_VALUE) {
         CloseHandle(h);
     }
+}
+
+std::vector<std::chrono::system_clock::time_point> restart_history() {
+    return load_restart_history(restart_history_path());
 }
 }  // namespace arc::persistence

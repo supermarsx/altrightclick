@@ -215,6 +215,8 @@ Config load(const std::filesystem::path &path) {
             cfg.log_level = vall;
         } else if (key == "log_file") {
             cfg.log_file = val;  // keep original as path
+        } else if (key == "log_thread_id") {
+            cfg.log_thread_id = (vall == "1" || vall == "true" || vall == "yes");
         } else if (key == "watch_config") {
             cfg.watch_config = (vall == "1" || vall == "true" || vall == "yes");
         } else if (key == "persistence" || key == "persistence_enabled") {
@@ -387,6 +389,8 @@ bool save(const std::filesystem::path &path, const Config &cfg) {
         out << "# Log file path (optional)\n";
         out << "log_file=" << cfg.log_file << "\n";
     }
+    out << "# Include thread id in each log line (true/false)\n";
+    out << "log_thread_id=" << (cfg.log_thread_id ? "true" : "false") << "\n";
     out << "\n# Live reload the config file on changes (true/false)\n";
     out << "watch_config=" << (cfg.watch_config ? "true" : "false") << "\n";
     out << "\n# Restart the app if it crashes (true/false). Applies only to interactive mode.\n";
