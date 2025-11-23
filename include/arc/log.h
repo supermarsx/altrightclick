@@ -13,12 +13,12 @@
 
 namespace arc { namespace log {
 
-// Severity levels (in increasing verbosity order).
+/// @brief Severity levels (in increasing verbosity order).
 enum class LogLevel {
-    Error = 0,
-    Warn = 1,
-    Info = 2,
-    Debug = 3
+    Error = 0,  ///< Error conditions that typically abort functionality.
+    Warn = 1,   ///< Recoverable problems worth surfacing to the user.
+    Info = 2,   ///< Informational diagnostics about normal operation.
+    Debug = 3   ///< Verbose debugging information.
 };
 
 /**
@@ -72,6 +72,34 @@ void stop_async();
 std::string last_error_message(uint32_t err);
 
 /**
+ * @brief Enables or disables inclusion of Windows thread ids in log lines.
+ *
+ * @param enabled True to append `[T:<thread-id>]` to each message.
+ */
+void set_include_thread_id(bool enabled);
+
+/**
+ * @brief RAII helper that logs scope entry/exit automatically.
+ *
+ * Constructing the scope emits "<name> begin" at the requested severity and
+ * destroying it emits "<name> end". Useful for tracing critical sections.
+ */
+class LogScope {
+ public:
+    LogScope(const char *name, LogLevel lvl = LogLevel::Debug);
+    ~LogScope();
+
+ private:
+    std::string name_;
+    LogLevel level_;
+    bool active_ = false;
+};
+
+#define ARC_LOG_CONCAT_INNER(a, b) a##b
+#define ARC_LOG_CONCAT(a, b) ARC_LOG_CONCAT_INNER(a, b)
+#define ARC_LOG_SCOPE(name) ::arc::log::LogScope ARC_LOG_CONCAT(_arc_scope_, __LINE__)(name)
+
+/**
  * @brief Emits a log line at the given severity.
  *
  * In async mode, enqueues the line; otherwise writes synchronously.
@@ -81,10 +109,13 @@ std::string last_error_message(uint32_t err);
  */
 void write(LogLevel lvl, const std::string &msg);
 
-// Convenience wrappers.
+/// @brief Convenience wrapper that logs at LogLevel::Error.
 inline void error(const std::string &msg) { write(LogLevel::Error, msg); }
+/// @brief Convenience wrapper that logs at LogLevel::Warn.
 inline void warn(const std::string &msg) { write(LogLevel::Warn, msg); }
+/// @brief Convenience wrapper that logs at LogLevel::Info.
 inline void info(const std::string &msg) { write(LogLevel::Info, msg); }
+/// @brief Convenience wrapper that logs at LogLevel::Debug.
 inline void debug(const std::string &msg) { write(LogLevel::Debug, msg); }
 
 }  // namespace log

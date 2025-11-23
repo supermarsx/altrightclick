@@ -6,6 +6,8 @@
 #pragma once
 
 #include <string>
+#include <vector>
+#include <chrono>
 
 namespace arc { namespace persistence {
 
@@ -55,6 +57,16 @@ bool is_monitor_running();
 // Gracefully stop monitor by signaling a named event; if it does not exit
 // within timeout_ms, fall back to forceful termination. Returns true on success.
 bool stop_monitor_graceful(unsigned int timeout_ms = 3000);
+
+/**
+ * @brief Returns recorded persistence restart timestamps (UTC) if any.
+ *
+ * Used by diagnostic commands (e.g., --status) to report how many restarts
+ * have occurred recently and when the last restart happened.
+ *
+ * @return Vector of restart timestamps in system_clock (UTC) order.
+ */
+std::vector<std::chrono::system_clock::time_point> restart_history();
 
 }  // namespace persistence
 
