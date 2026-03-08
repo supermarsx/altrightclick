@@ -70,6 +70,7 @@ int main() {
                           "move_radius_px=9\n"
                           "trigger=X2\n"
                           "log_level=debug\n"
+                          "log_file=mylog.txt\n"
                           "log_thread_id=true\n"
                           "watch_config=true\n";
         std::string path = write_temp_file("config_test.ini", cfg);
@@ -85,6 +86,7 @@ int main() {
         expect(c.move_radius_px == 9, "move_radius_px parsed 9");
         expect(c.trigger == Config::Trigger::X2, "trigger parsed X2");
         expect(c.log_level == std::string("debug"), "log_level parsed debug");
+        expect(c.log_file == std::string("mylog.txt"), "log_file parsed");
         expect(c.log_thread_id == true, "log_thread_id parsed true");
         expect(c.watch_config == true, "watch_config parsed true");
         std::remove(path.c_str());
@@ -116,6 +118,7 @@ int main() {
         w.move_radius_px = 7;
         w.trigger = Config::Trigger::Middle;
         w.log_level = "warn";
+        w.log_file = "test_output.log";
         w.watch_config = false;
         w.log_thread_id = true;
         std::string out = "config_roundtrip.ini";
@@ -131,6 +134,7 @@ int main() {
         expect(r.move_radius_px == w.move_radius_px, "roundtrip move_radius_px");
         expect(r.trigger == w.trigger, "roundtrip trigger");
         expect(r.log_level == w.log_level, "roundtrip log_level");
+        expect(r.log_file == w.log_file, "roundtrip log_file");
         expect(r.log_thread_id == w.log_thread_id, "roundtrip log_thread_id");
         std::remove(out.c_str());
     }

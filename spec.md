@@ -180,7 +180,7 @@ All management commands sanitize inputs (e.g., reject unsafe config paths for se
 
 ## 15. Known Limitations & Future Considerations
 - Service mode cannot translate clicks in Session 0; users should prefer scheduled tasks or other user-session auto-start methods.
-- Only `ESC` or `F12` can be configured as exit keys without code changes.
+- Exit key supports a wide range of single keys (ESC, F1–F24, A–Z, 0–9, arrow keys, etc.) and multi-key combos (e.g., `CTRL+ALT+Q`); set to `DISABLED` to remove the hotkey entirely.
 - Modifier parsing currently recognizes ALT/CTRL/SHIFT/WIN; additional keys would require code updates.
 - Config watcher uses timestamp polling rather than filesystem events; extremely frequent edits within <500 ms may be coalesced.
 - Hook translation exclusively targets right-click injection; additional target buttons (e.g., middle-click emulation) would require new configuration surfaces.
