@@ -14,6 +14,8 @@ namespace arc::app {
  * Returns true if every virtual key in the combo is currently pressed.
  */
 static bool is_combo_pressed(const std::vector<unsigned int> &combo) {
+    if (combo.empty())
+        return false;
     for (auto vk : combo) {
         if ((GetAsyncKeyState(static_cast<int>(vk)) & 0x8000) == 0)
             return false;

@@ -24,7 +24,7 @@ namespace arc { namespace app {
  * @param exit_combo Optional virtual-key combo for keyboard exit.
  * @return 0 on normal shutdown.
  */
-int run_loop(const std::vector<unsigned int> &exit_combo = {0x1B});
+int run_loop(const std::vector<unsigned int> &exit_combo = {0x1B});  // VK_ESCAPE
 
 }  // namespace app
 
